@@ -1,0 +1,342 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		4F292F09910E466090C95E3D /* SplitFlapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42FF63475CAC4E399149CB10 /* SplitFlapView.swift */; };
+		4B5ADF5BC066495994C29032 /* CharacterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08E75B080BCD48D79F80C898 /* CharacterGrid.swift */; };
+		BBDBCB9483E94FBDA7366EF4 /* SplitFlapPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED5F329B467D41CBB8AFABCC /* SplitFlapPanel.swift */; };
+		E422C254DE334797B873E101 /* FlipAnimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F02920C52D74E98859D8ACB /* FlipAnimator.swift */; };
+		D46314B140D444D8BF002D50 /* DisplayClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFF542687ECF4850AEE45CBE /* DisplayClock.swift */; };
+		EFE3F48231454D52A4EE2C48 /* CharacterSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30537C46A0D417DA9A7C58E /* CharacterSet.swift */; };
+		379902B659FA4434815BF2AC /* ScreenSaver.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */; };
+		E20F4AC790D1441481FB41D6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		42FF63475CAC4E399149CB10 /* SplitFlapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitFlapView.swift; sourceTree = "<group>"; };
+		08E75B080BCD48D79F80C898 /* CharacterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterGrid.swift; sourceTree = "<group>"; };
+		ED5F329B467D41CBB8AFABCC /* SplitFlapPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitFlapPanel.swift; sourceTree = "<group>"; };
+		4F02920C52D74E98859D8ACB /* FlipAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipAnimator.swift; sourceTree = "<group>"; };
+		FFF542687ECF4850AEE45CBE /* DisplayClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayClock.swift; sourceTree = "<group>"; };
+		D30537C46A0D417DA9A7C58E /* CharacterSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterSet.swift; sourceTree = "<group>"; };
+		6DF5732666934A6D8D48E527 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenSaver.framework; path = System/Library/Frameworks/ScreenSaver.framework; sourceTree = SDKROOT; };
+		143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		E420CAB63F3F433EB3277901 /* SplitFlap.saver */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SplitFlap.saver; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3E27C90109DA47878A9C2966 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				379902B659FA4434815BF2AC /* ScreenSaver.framework in Frameworks */,
+				E20F4AC790D1441481FB41D6 /* QuartzCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		19EB68C5CC8F4E05A9C3C034 /* root */ = {
+			isa = PBXGroup;
+			children = (
+				123FF9E24A604114ACA43115 /* SplitFlap */,
+				67D1A2262D8749A2B2D7B4F5 /* Frameworks */,
+				C54930C701764AB19FC74233 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		123FF9E24A604114ACA43115 /* SplitFlap */ = {
+			isa = PBXGroup;
+			children = (
+				42FF63475CAC4E399149CB10 /* SplitFlapView.swift */,
+				08E75B080BCD48D79F80C898 /* CharacterGrid.swift */,
+				ED5F329B467D41CBB8AFABCC /* SplitFlapPanel.swift */,
+				4F02920C52D74E98859D8ACB /* FlipAnimator.swift */,
+				FFF542687ECF4850AEE45CBE /* DisplayClock.swift */,
+				D30537C46A0D417DA9A7C58E /* CharacterSet.swift */,
+				6DF5732666934A6D8D48E527 /* Info.plist */,
+			);
+			path = SplitFlap;
+			sourceTree = "<group>";
+		};
+		67D1A2262D8749A2B2D7B4F5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */,
+				143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C54930C701764AB19FC74233 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E420CAB63F3F433EB3277901 /* SplitFlap.saver */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6493DE9D43474E66981901F8 /* SplitFlap */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D9B0475FBF9B4CBD9490B346 /* Build configuration list for PBXNativeTarget "SplitFlap" */;
+			buildPhases = (
+				6F2D0E27DBF049C4803A87DB /* Sources */,
+				3E27C90109DA47878A9C2966 /* Frameworks */,
+				DF4D526DACB047BA97CA92AA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SplitFlap;
+			productName = SplitFlap;
+			productReference = E420CAB63F3F433EB3277901 /* SplitFlap.saver */;
+			productType = "com.apple.product-type.bundle";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		038B4FB7370B4954989E1E37 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = B7450600C2024336A4438E01 /* Build configuration list for PBXProject "SplitFlap" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 19EB68C5CC8F4E05A9C3C034;
+			productRefGroup = C54930C701764AB19FC74233 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6493DE9D43474E66981901F8 /* SplitFlap */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DF4D526DACB047BA97CA92AA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6F2D0E27DBF049C4803A87DB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F292F09910E466090C95E3D /* SplitFlapView.swift in Sources */,
+				4B5ADF5BC066495994C29032 /* CharacterGrid.swift in Sources */,
+				BBDBCB9483E94FBDA7366EF4 /* SplitFlapPanel.swift in Sources */,
+				E422C254DE334797B873E101 /* FlipAnimator.swift in Sources */,
+				D46314B140D444D8BF002D50 /* DisplayClock.swift in Sources */,
+				EFE3F48231454D52A4EE2C48 /* CharacterSet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4A77BEB6CB984E06A8941770 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		EA030CD844E24BFAB93FF664 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		0CF5EAF9D5E64CC4B57E1B57 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = SplitFlap/Info.plist;
+				INSTALL_PATH = "$(HOME)/Library/Screen Savers";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACH_O_TYPE = mh_bundle;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.omt.SplitFlap";
+				PRODUCT_NAME = SplitFlap;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = saver;
+			};
+			name = Debug;
+		};
+		6E62F155E81249838153FD7B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = SplitFlap/Info.plist;
+				INSTALL_PATH = "$(HOME)/Library/Screen Savers";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACH_O_TYPE = mh_bundle;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.omt.SplitFlap";
+				PRODUCT_NAME = SplitFlap;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = saver;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B7450600C2024336A4438E01 /* Build configuration list for PBXProject "SplitFlap" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A77BEB6CB984E06A8941770 /* Debug */,
+				EA030CD844E24BFAB93FF664 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D9B0475FBF9B4CBD9490B346 /* Build configuration list for PBXNativeTarget "SplitFlap" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0CF5EAF9D5E64CC4B57E1B57 /* Debug */,
+				6E62F155E81249838153FD7B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 038B4FB7370B4954989E1E37 /* Project object */;
+}
