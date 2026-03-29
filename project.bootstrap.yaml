@@ -1,0 +1,91 @@
+version: 1
+project:
+  name: Screensaver
+  description: A macOS screensaver that simulates a split-flap mechanical display - the classic
+    flip-card style found in airports and train stations. Built in Swift.
+  visibility: public
+  owner: OMT-Global
+  defaultBranch: main
+repo:
+  managedPaths:
+    - project.bootstrap.yaml
+    - AGENTS.md
+    - CLAUDE.md
+    - CODEOWNERS
+    - .githooks/**
+    - .devcontainer/**
+    - .github/workflows/pr-fast-ci.yml
+    - .github/workflows/extended-validation.yml
+    - .github/workflows/claude.yml
+    - scripts/check-detect-secrets.sh
+    - scripts/ci/**
+    - scripts/codex-cloud/**
+    - scripts/claude-cloud/**
+    - scripts/claude/**
+    - docs/bootstrap/**
+archetype:
+  kind: generic-empty
+  packageManager: npm
+  moduleName: screensaver
+github:
+  createRepo: false
+  reviewers:
+    - jmcte
+  codeowners:
+    - pattern: "*"
+      owners:
+        - "@jmcte"
+  autoMerge: true
+  deleteBranchOnMerge: true
+  requiredApprovals: 1
+  requiredStatusChecks:
+    - CI Gate
+  dismissStaleReviews: true
+  requireCodeOwnerReviews: true
+  requireLastPushApproval: false
+  enforceLinearHistory: true
+  allowMergeCommit: true
+  allowSquashMerge: true
+  allowRebaseMerge: true
+  repoFeatures:
+    hasIssues: true
+    hasProjects: false
+    hasWiki: false
+    hasDiscussions: false
+ci:
+  runnerPolicy: hybrid-safe
+  nodeVersion: "20"
+  pythonVersion: "3.12"
+  fastChecks:
+    - secrets
+  extendedChecks:
+    - template-review
+  nightlyCron: 0 7 * * *
+agents:
+  manageCodexHome: true
+  manageClaudeHome: true
+  codexProfile: default
+  claudeProfile: default
+  enableClaudeWebEnvironment: true
+  enableClaudeDevcontainer: true
+  enableClaudeGitHubAction: true
+  sharedSkills: []
+environments:
+  dev:
+    reviewers: []
+    requireApproval: false
+    preventSelfReview: false
+    branches: []
+  stage:
+    reviewers:
+      - jmcte
+    requireApproval: true
+    preventSelfReview: true
+    branches: []
+  prod:
+    reviewers:
+      - jmcte
+    requireApproval: true
+    preventSelfReview: true
+    branches:
+      - main
