@@ -39,10 +39,13 @@ jobs:
               - '.devcontainer/**'
               - '.githooks/**'
               - '.github/workflows/**'
+              - 'SplitFlap/**'
+              - 'SplitFlap.xcodeproj/**'
               - 'scripts/**'
               - 'docs/bootstrap/**'
               - 'README.md'
               - 'docs/**'
+              - 'Makefile'
             ci:
               - 'project.bootstrap.yaml'
               - 'AGENTS.md'
