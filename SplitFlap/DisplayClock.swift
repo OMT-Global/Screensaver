@@ -79,9 +79,16 @@ final class DisplayClock {
 
     private func idleTick(grid: CharacterGrid) {
         let all = grid.allPanels()
+        guard !all.isEmpty else { return }
+
         let flipCount = max(1, Int(Double(all.count) * idleDensity))
-        var shuffled = all.shuffled()
-        let toFlip = Array(shuffled.prefix(flipCount))
+
+        // O(k) random selection instead of O(n) shuffle + allocation.
+        var selectedIndices = Set<Int>()
+        while selectedIndices.count < flipCount {
+            selectedIndices.insert(Int.random(in: 0..<all.count))
+        }
+        let toFlip = selectedIndices.map { all[$0] }
 
         for panel in toFlip {
             let target = SplitFlapCharacter.random()
