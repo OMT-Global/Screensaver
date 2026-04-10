@@ -70,9 +70,14 @@ final class FlipAnimator {
             }
         }
 
-        panel.bottomFlapContainer.isHidden = false
         panel.topFlapContainer.add(topFall, forKey: "topFall")
-        panel.bottomFlapContainer.add(bottomRise, forKey: "bottomRise")
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + fallDuration) { [weak panel] in
+            guard let panel = panel else { return }
+            panel.bottomFlapContainer.isHidden = false
+            panel.bottomFlapContainer.add(bottomRise, forKey: "bottomRise")
+        }
+
         CATransaction.commit()
     }
 }
