@@ -54,30 +54,30 @@ final class FlipAnimator {
         bottomRise.fillMode = .forwards
         bottomRise.isRemovedOnCompletion = false
 
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak panel, weak self] in
-            guard let panel = panel, let self = self else { return }
-            panel.topFlapContainer.removeAllAnimations()
-            panel.bottomFlapContainer.removeAllAnimations()
-            panel.finalizeFlip(to: toChar)
-
-            if remaining > 1 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + FlipAnimator.interStepPause) {
-                    self.runSteps(remaining: remaining - 1, panel: panel, completion: completion)
-                }
-            } else {
-                completion?()
-            }
-        }
-
         panel.topFlapContainer.add(topFall, forKey: "topFall")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + fallDuration) { [weak panel] in
             guard let panel = panel else { return }
             panel.bottomFlapContainer.isHidden = false
-            panel.bottomFlapContainer.add(bottomRise, forKey: "bottomRise")
-        }
 
-        CATransaction.commit()
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { [weak panel, weak self] in
+                guard let panel = panel, let self = self else { return }
+                panel.topFlapContainer.removeAllAnimations()
+                panel.bottomFlapContainer.removeAllAnimations()
+                panel.finalizeFlip(to: toChar)
+
+                if remaining > 1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + FlipAnimator.interStepPause) {
+                        self.runSteps(remaining: remaining - 1, panel: panel, completion: completion)
+                    }
+                } else {
+                    completion?()
+                }
+            }
+
+            panel.bottomFlapContainer.add(bottomRise, forKey: "bottomRise")
+            CATransaction.commit()
+        }
     }
 }
