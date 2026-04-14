@@ -81,6 +81,6 @@ final class SplitFlapView: ScreenSaverView {
 
     override var isOpaque: Bool { true }
 
-    override func hasConfigureSheet() -> Bool { false }
+    override var hasConfigureSheet: Bool { false }
     override var configureSheet: NSWindow? { nil }
 }
