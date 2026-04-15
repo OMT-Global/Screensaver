@@ -26,6 +26,7 @@ jobs:
     runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
     outputs:
       app: ${{ steps.filter.outputs.app }}
+      apple: ${{ steps.filter.outputs.apple }}
       ci: ${{ steps.filter.outputs.ci }}
     steps:
       - uses: dorny/paths-filter@v3
@@ -46,6 +47,9 @@ jobs:
               - 'README.md'
               - 'docs/**'
               - 'Makefile'
+            apple:
+              - 'SplitFlap/**'
+              - 'SplitFlap.xcodeproj/**'
             ci:
               - 'project.bootstrap.yaml'
               - 'AGENTS.md'
@@ -74,6 +78,29 @@ jobs:
       - name: Run fast checks
         run: bash scripts/ci/run-fast-checks.sh
 
+  macos-checks:
+    name: macOS Checks
+    runs-on: macos-15
+    timeout-minutes: 15
+    needs: changes
+    if: >-
+      github.event.pull_request.draft == false &&
+      needs.changes.outputs.apple == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Run macOS build validation
+        run: |
+          xcodebuild \
+            -project SplitFlap.xcodeproj \
+            -scheme SplitFlap \
+            -configuration Release \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
   validate-secrets:
     name: Validate Secrets
     runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
@@ -93,6 +120,7 @@ jobs:
     needs:
       - changes
       - fast-checks
+      - macos-checks
       - validate-secrets
     steps:
       - name: Check required PR jobs
@@ -100,6 +128,7 @@ jobs:
           RESULTS: >-
             changes=${{ needs.changes.result }}
             fast-checks=${{ needs.fast-checks.result }}
+            macos-checks=${{ needs.macos-checks.result }}
             validate-secrets=${{ needs.validate-secrets.result }}
         run: |
           failed=0
