@@ -94,7 +94,11 @@ jobs:
 
   extended-checks:
     name: Extended Checks
+<<<<<<< Updated upstream
     runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+=======
+    runs-on: ['self-hosted', 'public', 'macOS', 'ARM64', 'xcode']
+>>>>>>> Stashed changes
     timeout-minutes: 20
     needs: changes
     if: needs.changes.outputs.extended == 'true' || needs.changes.outputs.app == 'true'

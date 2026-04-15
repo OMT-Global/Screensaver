@@ -64,7 +64,11 @@ jobs:
 
   fast-checks:
     name: Fast Checks
+<<<<<<< Updated upstream
     runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+=======
+    runs-on: ['self-hosted', 'public', 'macOS', 'ARM64', 'xcode']
+>>>>>>> Stashed changes
     timeout-minutes: 15
     needs: changes
     if: >-
