@@ -30,51 +30,54 @@ final class FlipAnimator {
         let toChar   = fromChar.next
         panel.prepareFlip(fromChar: fromChar, toChar: toChar)
 
+        let now = CACurrentMediaTime()
+        let fallDuration = FlipAnimator.topFallDuration
+        let riseDuration = FlipAnimator.bottomRiseDuration
+
         // Phase 1 — top flap falls
         let topFall = CABasicAnimation(keyPath: "transform.rotation.x")
         topFall.fromValue = 0.0
         topFall.toValue   = -Double.pi / 2
-        topFall.duration  = FlipAnimator.topFallDuration
-        topFall.beginTime = CACurrentMediaTime()
+        topFall.duration  = fallDuration
+        topFall.beginTime = now
         topFall.timingFunction = CAMediaTimingFunction(name: .easeIn)
         topFall.fillMode = .forwards
         topFall.isRemovedOnCompletion = false
-        panel.topFlapContainer.add(topFall, forKey: "topFall")
 
-        // Phase 2 — bottom flap rises (starts after top flap vanishes)
-        let fallDuration = FlipAnimator.topFallDuration
-        let riseDuration = FlipAnimator.bottomRiseDuration
+        // Phase 2 — bottom flap rises after the top flap finishes.
+        let bottomRise = CABasicAnimation(keyPath: "transform.rotation.x")
+        bottomRise.fromValue = Double.pi / 2
+        bottomRise.toValue   = 0.0
+        bottomRise.duration  = riseDuration
+        bottomRise.beginTime = now + fallDuration
+        bottomRise.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        bottomRise.fillMode = .forwards
+        bottomRise.isRemovedOnCompletion = false
+
+        panel.topFlapContainer.add(topFall, forKey: "topFall")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + fallDuration) { [weak panel] in
             guard let panel = panel else { return }
             panel.bottomFlapContainer.isHidden = false
 
-            let bottomRise = CABasicAnimation(keyPath: "transform.rotation.x")
-            bottomRise.fromValue = Double.pi / 2
-            bottomRise.toValue   = 0.0
-            bottomRise.duration  = riseDuration
-            bottomRise.beginTime = CACurrentMediaTime()
-            bottomRise.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            bottomRise.fillMode = .forwards
-            bottomRise.isRemovedOnCompletion = false
-            panel.bottomFlapContainer.add(bottomRise, forKey: "bottomRise")
-        }
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { [weak panel, weak self] in
+                guard let panel = panel, let self = self else { return }
+                panel.topFlapContainer.removeAllAnimations()
+                panel.bottomFlapContainer.removeAllAnimations()
+                panel.finalizeFlip(to: toChar)
 
-        // Finalize after both phases
-        let stepTotal = fallDuration + riseDuration
-        DispatchQueue.main.asyncAfter(deadline: .now() + stepTotal) { [weak panel, weak self] in
-            guard let panel = panel, let self = self else { return }
-            panel.topFlapContainer.removeAllAnimations()
-            panel.bottomFlapContainer.removeAllAnimations()
-            panel.finalizeFlip(to: toChar)
-
-            if remaining > 1 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + FlipAnimator.interStepPause) {
-                    self.runSteps(remaining: remaining - 1, panel: panel, completion: completion)
+                if remaining > 1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + FlipAnimator.interStepPause) {
+                        self.runSteps(remaining: remaining - 1, panel: panel, completion: completion)
+                    }
+                } else {
+                    completion?()
                 }
-            } else {
-                completion?()
             }
+
+            panel.bottomFlapContainer.add(bottomRise, forKey: "bottomRise")
+            CATransaction.commit()
         }
     }
 }
