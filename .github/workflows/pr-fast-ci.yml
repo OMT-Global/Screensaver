@@ -64,7 +64,7 @@ jobs:
 
   fast-checks:
     name: Fast Checks
-    runs-on: ['self-hosted', 'public', 'macOS', 'ARM64', 'xcode']
+    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
     timeout-minutes: 15
     needs: changes
     if: >-
@@ -80,12 +80,12 @@ jobs:
 
   macos-checks:
     name: macOS Checks
-    runs-on: macos-15
+    runs-on: ['self-hosted', 'private', 'macOS', 'ARM64', 'xcode']
     timeout-minutes: 15
     needs: changes
     if: >-
       github.event.pull_request.draft == false &&
-      needs.changes.outputs.apple == 'true'
+      (needs.changes.outputs.apple == 'true' || needs.changes.outputs.ci == 'true')
     steps:
       - uses: actions/checkout@v4
         with:
