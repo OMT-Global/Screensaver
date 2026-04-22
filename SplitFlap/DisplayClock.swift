@@ -66,7 +66,7 @@ final class DisplayClock {
             }
 
         case .wave:
-            // Wave is driven by deferred dispatches started in startWave().
+            // Wave animation timing is encoded in each panel's animation beginTime.
             // We just count ticks to know when to return to idle.
             if phaseTickCount >= waveTickDuration {
                 phase = .idle
@@ -102,23 +102,21 @@ final class DisplayClock {
         // Choose a random target character for each panel (or fill with a message).
         let targets = buildWaveTargets(grid: grid)
 
-        // Stagger column-by-column, each column delayed by a small offset.
-        let colDelay: TimeInterval = 0.06
+        // Stagger column-by-column by assigning Core Animation begin times in one pass.
+        let columnStagger: CFTimeInterval = 0.06
+        let maxRowJitter: CFTimeInterval = 0.04
+        let baseTime = CACurrentMediaTime()
 
         for col in 0..<grid.cols {
-            let delay = TimeInterval(col) * colDelay
-            let colIndex = col
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak grid] in
-                guard let self = self, let grid = grid else { return }
-                // Add a small random per-row jitter for a more organic feel.
-                for row in 0..<grid.rows {
-                    let rowJitter = TimeInterval.random(in: 0...0.04)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + rowJitter) {
-                        guard let panel = grid.panel(row: row, col: colIndex) else { return }
-                        let target = targets[row][colIndex]
-                        self.animator.animateTo(target, panel: panel)
-                    }
-                }
+            let columnOffset = CFTimeInterval(col) * columnStagger
+
+            for row in 0..<grid.rows {
+                guard let panel = grid.panel(row: row, col: col) else { continue }
+
+                let rowJitter = CFTimeInterval.random(in: 0...maxRowJitter)
+                let beginTime = baseTime + columnOffset + rowJitter
+                let target = targets[row][col]
+                animator.animateTo(target, panel: panel, beginTime: beginTime)
             }
         }
     }

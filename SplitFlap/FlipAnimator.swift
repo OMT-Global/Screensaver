@@ -12,25 +12,36 @@ final class FlipAnimator {
     func animateTo(
         _ targetChar: SplitFlapCharacter,
         panel: SplitFlapPanel,
+        beginTime: CFTimeInterval? = nil,
         completion: (() -> Void)? = nil
     ) {
         let steps = panel.currentCharacter.stepsTo(targetChar)
         guard steps > 0 else { completion?(); return }
-        runSteps(remaining: steps, panel: panel, completion: completion)
+        runSteps(
+            remaining: steps,
+            panel: panel,
+            beginTime: beginTime ?? CACurrentMediaTime(),
+            completion: completion
+        )
     }
 
     private func runSteps(
         remaining: Int,
         panel: SplitFlapPanel,
+        beginTime: CFTimeInterval,
         completion: (() -> Void)?
     ) {
         guard remaining > 0 else { completion?(); return }
 
         let fromChar = panel.currentCharacter
         let toChar   = fromChar.next
-        panel.prepareFlip(fromChar: fromChar, toChar: toChar)
+        let startsImmediately = beginTime <= CACurrentMediaTime()
+        panel.prepareFlip(
+            fromChar: fromChar,
+            toChar: toChar,
+            revealStaticBottom: startsImmediately
+        )
 
-        let now = CACurrentMediaTime()
         let fallDuration = FlipAnimator.topFallDuration
         let riseDuration = FlipAnimator.bottomRiseDuration
 
@@ -39,7 +50,7 @@ final class FlipAnimator {
         topFall.fromValue = 0.0
         topFall.toValue   = -Double.pi / 2
         topFall.duration  = fallDuration
-        topFall.beginTime = now
+        topFall.beginTime = beginTime
         topFall.timingFunction = CAMediaTimingFunction(name: .easeIn)
         topFall.fillMode = .forwards
         topFall.isRemovedOnCompletion = false
@@ -49,14 +60,15 @@ final class FlipAnimator {
         bottomRise.fromValue = Double.pi / 2
         bottomRise.toValue   = 0.0
         bottomRise.duration  = riseDuration
-        bottomRise.beginTime = now + fallDuration
+        bottomRise.beginTime = beginTime + fallDuration
         bottomRise.timingFunction = CAMediaTimingFunction(name: .easeOut)
         bottomRise.fillMode = .forwards
         bottomRise.isRemovedOnCompletion = false
 
         panel.topFlapContainer.add(topFall, forKey: "topFall")
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + fallDuration) { [weak panel] in
+        let bottomRevealDelay = max(0, beginTime + fallDuration - CACurrentMediaTime())
+        DispatchQueue.main.asyncAfter(deadline: .now() + bottomRevealDelay) { [weak panel] in
             guard let panel = panel else { return }
             panel.bottomFlapContainer.isHidden = false
 
@@ -69,7 +81,12 @@ final class FlipAnimator {
 
                 if remaining > 1 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + FlipAnimator.interStepPause) {
-                        self.runSteps(remaining: remaining - 1, panel: panel, completion: completion)
+                        self.runSteps(
+                            remaining: remaining - 1,
+                            panel: panel,
+                            beginTime: CACurrentMediaTime(),
+                            completion: completion
+                        )
                     }
                 } else {
                     completion?()
