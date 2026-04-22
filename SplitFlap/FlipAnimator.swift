@@ -13,14 +13,21 @@ final class FlipAnimator {
         _ targetChar: SplitFlapCharacter,
         panel: SplitFlapPanel,
         beginTime: CFTimeInterval? = nil,
+        shouldContinue: @escaping () -> Bool = { true },
         completion: (() -> Void)? = nil
     ) {
+        guard shouldContinue() else { completion?(); return }
+
         let steps = panel.currentCharacter.stepsTo(targetChar)
         guard steps > 0 else { completion?(); return }
+        guard !panel.isFlipping else { completion?(); return }
+
+        panel.beginFlipping()
         runSteps(
             remaining: steps,
             panel: panel,
             beginTime: beginTime ?? CACurrentMediaTime(),
+            shouldContinue: shouldContinue,
             completion: completion
         )
     }
@@ -29,8 +36,15 @@ final class FlipAnimator {
         remaining: Int,
         panel: SplitFlapPanel,
         beginTime: CFTimeInterval,
+        shouldContinue: @escaping () -> Bool,
         completion: (() -> Void)?
     ) {
+        guard shouldContinue() else {
+            panel.cancelFlip()
+            completion?()
+            return
+        }
+
         guard remaining > 0 else { completion?(); return }
 
         let fromChar = panel.currentCharacter
@@ -70,14 +84,24 @@ final class FlipAnimator {
         let bottomRevealDelay = max(0, beginTime + fallDuration - CACurrentMediaTime())
         DispatchQueue.main.asyncAfter(deadline: .now() + bottomRevealDelay) { [weak panel] in
             guard let panel = panel else { return }
+            guard shouldContinue() else {
+                panel.cancelFlip()
+                completion?()
+                return
+            }
             panel.bottomFlapContainer.isHidden = false
 
             CATransaction.begin()
             CATransaction.setCompletionBlock { [weak panel, weak self] in
                 guard let panel = panel, let self = self else { return }
+                guard shouldContinue() else {
+                    panel.cancelFlip()
+                    completion?()
+                    return
+                }
                 panel.topFlapContainer.removeAllAnimations()
                 panel.bottomFlapContainer.removeAllAnimations()
-                panel.finalizeFlip(to: toChar)
+                panel.finalizeFlip(to: toChar, done: remaining <= 1)
 
                 if remaining > 1 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + FlipAnimator.interStepPause) {
@@ -85,6 +109,7 @@ final class FlipAnimator {
                             remaining: remaining - 1,
                             panel: panel,
                             beginTime: CACurrentMediaTime(),
+                            shouldContinue: shouldContinue,
                             completion: completion
                         )
                     }

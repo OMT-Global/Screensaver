@@ -48,7 +48,7 @@ final class SplitFlapView: ScreenSaverView {
 
     override func startAnimation() {
         super.startAnimation()
-        clock?.start()
+        clock?.start(screen: window?.screen ?? NSScreen.main)
     }
 
     override func stopAnimation() {
@@ -69,11 +69,8 @@ final class SplitFlapView: ScreenSaverView {
         let scale = NSScreen.main?.backingScaleFactor ?? 2.0
         rootLayer.frame = bounds
         grid?.rebuild(bounds: bounds, isPreview: isPreview, scale: scale)
-        if let g = grid {
-            clock = DisplayClock(grid: g)
-            if isAnimating {
-                clock?.start()
-            }
+        if isAnimating {
+            clock?.start(screen: window?.screen ?? NSScreen.main)
         }
     }
 
