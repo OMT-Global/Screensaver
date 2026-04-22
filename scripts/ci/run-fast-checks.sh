@@ -32,3 +32,18 @@ awk '
 		in_cached_formatter = 0
 	}
 ' SplitFlap/DisplayClock.swift
+
+if ! grep -q 'let dimensionsChanged =' SplitFlap/CharacterGrid.swift; then
+	echo "CharacterGrid must distinguish grid dimension changes from same-grid resizes."
+	exit 1
+fi
+
+if ! grep -q 'panel.resize(to: ps, scale: scale)' SplitFlap/CharacterGrid.swift; then
+	echo "CharacterGrid must resize existing panels when grid dimensions are unchanged."
+	exit 1
+fi
+
+if ! grep -q 'func resize(to size: CGSize, scale: CGFloat)' SplitFlap/SplitFlapPanel.swift; then
+	echo "SplitFlapPanel must expose a layer-preserving resize path."
+	exit 1
+fi
