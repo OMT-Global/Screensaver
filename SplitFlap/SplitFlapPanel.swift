@@ -320,10 +320,25 @@ final class SplitFlapPanel {
     func prepareFlip(
         fromChar: SplitFlapCharacter,
         toChar: SplitFlapCharacter,
-        revealStaticBottom: Bool = true
+        revealStaticBottom: Bool = true,
+        batchedTransaction: Bool = false
     ) {
+        if batchedTransaction {
+            applyPreparedFlipState(fromChar: fromChar, toChar: toChar, revealStaticBottom: revealStaticBottom)
+            return
+        }
+
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        applyPreparedFlipState(fromChar: fromChar, toChar: toChar, revealStaticBottom: revealStaticBottom)
+        CATransaction.commit()
+    }
+
+    private func applyPreparedFlipState(
+        fromChar: SplitFlapCharacter,
+        toChar: SplitFlapCharacter,
+        revealStaticBottom: Bool
+    ) {
         applyGlyph(fromChar, to: staticTopText, storedIn: \.staticTopCharacter)
         applyGlyph(revealStaticBottom ? toChar : fromChar, to: staticBottomText, storedIn: \.staticBottomCharacter)
         applyGlyph(fromChar, to: topFlapText, storedIn: \.topFlapCharacter)
@@ -331,7 +346,6 @@ final class SplitFlapPanel {
         topFlapContainer.transform    = CATransform3DIdentity        // flat, visible
         bottomFlapContainer.transform = CATransform3DMakeRotation(.pi / 2, 1, 0, 0)
         bottomFlapContainer.isHidden  = true  // invisible until top flap finishes
-        CATransaction.commit()
     }
 
     /// Called after a single flip step completes to snap to the final state.
