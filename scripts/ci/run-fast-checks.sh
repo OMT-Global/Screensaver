@@ -47,3 +47,13 @@ if ! grep -q 'func resize(to size: CGSize, scale: CGFloat)' SplitFlap/SplitFlapP
 	echo "SplitFlapPanel must expose a layer-preserving resize path."
 	exit 1
 fi
+
+if grep -q 'CATextLayer\|NSBitmapImageRep' SplitFlap/SplitFlapPanel.swift; then
+	echo "SplitFlapPanel must use pre-rendered IOSurface glyph contents instead of text layers or bitmap reps."
+	exit 1
+fi
+
+if ! grep -q 'import IOSurface' SplitFlap/SplitFlapPanel.swift; then
+	echo "SplitFlapPanel must render cached glyph contents through IOSurface."
+	exit 1
+fi

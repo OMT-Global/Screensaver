@@ -1,5 +1,8 @@
 import QuartzCore
 import AppKit
+import IOSurface
+import CoreVideo
+import Darwin
 
 // Colors matching a classic Solari board.
 enum BoardColors {
@@ -12,16 +15,62 @@ enum BoardColors {
 private final class GlyphImageCache {
     static let shared = GlyphImageCache()
 
-    private let cache = NSCache<NSString, CGImage>()
+    private final class GlyphSurface {
+        let surface: IOSurface
 
-    func image(for character: SplitFlapCharacter, size: CGSize, scale: CGFloat) -> CGImage? {
+        init(surface: IOSurface) {
+            self.surface = surface
+        }
+    }
+
+    private let cache = NSCache<NSString, GlyphSurface>()
+
+    func contents(for character: SplitFlapCharacter, size: CGSize, scale: CGFloat) -> Any? {
         let pixelWidth = max(1, Int((size.width * scale).rounded(.up)))
         let pixelHeight = max(1, Int((size.height * scale).rounded(.up)))
         let key = "\(character.rawValue)-\(pixelWidth)x\(pixelHeight)" as NSString
 
         if let cached = cache.object(forKey: key) {
-            return cached
+            return cached.surface
         }
+
+        let properties: [IOSurfacePropertyKey: any Sendable] = [
+            .width: pixelWidth,
+            .height: pixelHeight,
+            .bytesPerElement: 4,
+            .pixelFormat: kCVPixelFormatType_32BGRA
+        ]
+        guard let surface = IOSurface(properties: properties) else {
+            return nil
+        }
+
+        guard surface.lock(options: [], seed: nil) == KERN_SUCCESS else {
+            return nil
+        }
+        defer {
+            _ = surface.unlock(options: [], seed: nil)
+        }
+
+        let byteCount = surface.bytesPerRow * pixelHeight
+        _ = memset(surface.baseAddress, 0, byteCount)
+
+        let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(
+            CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue)
+        )
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                  data: surface.baseAddress,
+                  width: pixelWidth,
+                  height: pixelHeight,
+                  bitsPerComponent: 8,
+                  bytesPerRow: surface.bytesPerRow,
+                  space: colorSpace,
+                  bitmapInfo: bitmapInfo.rawValue
+              ) else {
+            return nil
+        }
+
+        context.scaleBy(x: scale, y: scale)
 
         let fontSize = size.height * 0.72
         let font = NSFont(name: "SFMono-Regular", size: fontSize)
@@ -36,26 +85,8 @@ private final class GlyphImageCache {
             .paragraphStyle: paragraph
         ]
 
-        guard let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: pixelWidth,
-            pixelsHigh: pixelHeight,
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ) else {
-            return nil
-        }
-        rep.size = size
-
         NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        NSColor.clear.setFill()
-        CGRect(origin: .zero, size: size).fill()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
 
         let string = character.displayString as NSString
         let textSize = string.size(withAttributes: attributes)
@@ -68,11 +99,9 @@ private final class GlyphImageCache {
         string.draw(in: drawRect, withAttributes: attributes)
         NSGraphicsContext.restoreGraphicsState()
 
-        guard let image = rep.cgImage else {
-            return nil
-        }
-        cache.setObject(image, forKey: key)
-        return image
+        let glyphSurface = GlyphSurface(surface: surface)
+        cache.setObject(glyphSurface, forKey: key)
+        return surface
     }
 }
 
@@ -373,7 +402,7 @@ final class SplitFlapPanel {
         storedIn keyPath: ReferenceWritableKeyPath<SplitFlapPanel, SplitFlapCharacter>
     ) {
         self[keyPath: keyPath] = character
-        layer.contents = GlyphImageCache.shared.image(
+        layer.contents = GlyphImageCache.shared.contents(
             for: character,
             size: CGSize(width: w, height: h),
             scale: layer.contentsScale
