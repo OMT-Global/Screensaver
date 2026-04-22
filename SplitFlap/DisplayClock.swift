@@ -267,6 +267,7 @@ final class DisplayClock: NSObject {
                     target,
                     panel: panel,
                     beginTime: beginTime,
+                    batchedTransaction: true,
                     shouldContinue: { [weak self] in self?.isCurrentGeneration(generation) ?? false }
                 )
             }

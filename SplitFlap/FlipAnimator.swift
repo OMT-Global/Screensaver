@@ -13,6 +13,7 @@ final class FlipAnimator {
         _ targetChar: SplitFlapCharacter,
         panel: SplitFlapPanel,
         beginTime: CFTimeInterval? = nil,
+        batchedTransaction: Bool = false,
         shouldContinue: @escaping () -> Bool = { true },
         completion: (() -> Void)? = nil
     ) {
@@ -27,6 +28,7 @@ final class FlipAnimator {
             remaining: steps,
             panel: panel,
             beginTime: beginTime ?? CACurrentMediaTime(),
+            batchedTransaction: batchedTransaction,
             shouldContinue: shouldContinue,
             completion: completion
         )
@@ -36,6 +38,7 @@ final class FlipAnimator {
         remaining: Int,
         panel: SplitFlapPanel,
         beginTime: CFTimeInterval,
+        batchedTransaction: Bool,
         shouldContinue: @escaping () -> Bool,
         completion: (() -> Void)?
     ) {
@@ -53,7 +56,8 @@ final class FlipAnimator {
         panel.prepareFlip(
             fromChar: fromChar,
             toChar: toChar,
-            revealStaticBottom: startsImmediately
+            revealStaticBottom: startsImmediately,
+            batchedTransaction: batchedTransaction
         )
 
         let fallDuration = FlipAnimator.topFallDuration
@@ -109,6 +113,7 @@ final class FlipAnimator {
                             remaining: remaining - 1,
                             panel: panel,
                             beginTime: CACurrentMediaTime(),
+                            batchedTransaction: false,
                             shouldContinue: shouldContinue,
                             completion: completion
                         )
