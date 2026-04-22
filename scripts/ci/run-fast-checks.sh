@@ -19,3 +19,16 @@ if grep -q 'DispatchQueue\.main\.asyncAfter' SplitFlap/DisplayClock.swift; then
 	echo "DisplayClock must not schedule wave work with DispatchQueue.main.asyncAfter."
 	exit 1
 fi
+
+awk '
+	/(static let|static var|lazy var).*DateFormatter/ {
+		in_cached_formatter = 1
+	}
+	/(Foundation\.)?DateFormatter[[:space:]]*\(/ && !in_cached_formatter {
+		print "DisplayClock must cache DateFormatter instances instead of constructing them on the tick path."
+		exit 1
+	}
+	in_cached_formatter && /^[[:space:]]*}\(\)/ {
+		in_cached_formatter = 0
+	}
+' SplitFlap/DisplayClock.swift
