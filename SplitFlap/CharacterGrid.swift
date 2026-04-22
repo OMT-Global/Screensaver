@@ -11,7 +11,7 @@ final class CharacterGrid {
         let originX: CGFloat
         let originY: CGFloat
 
-        func canReusePanels(from previous: LayoutMetrics) -> Bool {
+        func canReusePanelFrames(from previous: LayoutMetrics) -> Bool {
             rows == previous.rows && cols == previous.cols && panelSize == previous.panelSize
         }
     }
@@ -48,20 +48,37 @@ final class CharacterGrid {
 
     private func layout(bounds: CGRect, isPreview: Bool, scale: CGFloat) {
         let metrics = makeLayoutMetrics(bounds: bounds, isPreview: isPreview)
-
-        if let lastLayoutMetrics, metrics.canReusePanels(from: lastLayoutMetrics) {
-            applyFrames(using: metrics)
-            return
-        }
+        let dimensionsChanged = rows != metrics.rows
+            || cols != metrics.cols
+            || !hasPanelGrid(rows: metrics.rows, cols: metrics.cols)
+        let framesOnly = lastLayoutMetrics.map { metrics.canReusePanelFrames(from: $0) } ?? false
 
         panelSize = metrics.panelSize
         rows = metrics.rows
         cols = metrics.cols
-        lastLayoutMetrics = metrics
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         containerLayer.frame = metrics.bounds
         containerLayer.backgroundColor = BoardColors.screenBg
 
-        // Remove existing sublayers
+        if dimensionsChanged {
+            rebuildPanels(using: metrics, scale: scale)
+        } else if framesOnly {
+            applyFrames(using: metrics)
+        } else {
+            resizePanels(using: metrics, scale: scale)
+        }
+
+        lastLayoutMetrics = metrics
+        CATransaction.commit()
+    }
+
+    private func hasPanelGrid(rows: Int, cols: Int) -> Bool {
+        panels.count == rows && panels.allSatisfy { $0.count == cols }
+    }
+
+    private func rebuildPanels(using metrics: LayoutMetrics, scale: CGFloat) {
         containerLayer.sublayers?.forEach { $0.removeFromSuperlayer() }
         panels = []
         var flat: [SplitFlapPanel] = []
@@ -78,6 +95,25 @@ final class CharacterGrid {
             panels.append(row)
         }
         allPanelsFlat = flat
+    }
+
+    private func resizePanels(using metrics: LayoutMetrics, scale: CGFloat) {
+        let ps = metrics.panelSize
+        for r in 0..<rows {
+            for c in 0..<cols {
+                let panel = panels[r][c]
+                panel.resize(to: ps, scale: scale)
+                panel.panelLayer.frame = panelFrame(row: r, col: c, metrics: metrics)
+            }
+        }
+    }
+
+    private func applyFrames(using metrics: LayoutMetrics) {
+        for r in 0..<rows {
+            for c in 0..<cols {
+                panels[r][c].panelLayer.frame = panelFrame(row: r, col: c, metrics: metrics)
+            }
+        }
     }
 
     // MARK: - Access
@@ -117,24 +153,6 @@ final class CharacterGrid {
             originX: originX,
             originY: originY
         )
-    }
-
-    private func applyFrames(using metrics: LayoutMetrics) {
-        panelSize = metrics.panelSize
-        rows = metrics.rows
-        cols = metrics.cols
-        lastLayoutMetrics = metrics
-        containerLayer.frame = metrics.bounds
-        containerLayer.backgroundColor = BoardColors.screenBg
-
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        for r in 0..<rows {
-            for c in 0..<cols {
-                panels[r][c].panelLayer.frame = panelFrame(row: r, col: c, metrics: metrics)
-            }
-        }
-        CATransaction.commit()
     }
 
     private func panelFrame(row: Int, col: Int, metrics: LayoutMetrics) -> CGRect {
