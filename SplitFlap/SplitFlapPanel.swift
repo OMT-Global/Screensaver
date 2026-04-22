@@ -9,6 +9,73 @@ enum BoardColors {
     static let screenBg        = CGColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1.0)
 }
 
+private final class GlyphImageCache {
+    static let shared = GlyphImageCache()
+
+    private let cache = NSCache<NSString, CGImage>()
+
+    func image(for character: SplitFlapCharacter, size: CGSize, scale: CGFloat) -> CGImage? {
+        let pixelWidth = max(1, Int((size.width * scale).rounded(.up)))
+        let pixelHeight = max(1, Int((size.height * scale).rounded(.up)))
+        let key = "\(character.rawValue)-\(pixelWidth)x\(pixelHeight)" as NSString
+
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+
+        let fontSize = size.height * 0.72
+        let font = NSFont(name: "SFMono-Regular", size: fontSize)
+            ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+
+        let color = NSColor(cgColor: BoardColors.character) ?? .systemYellow
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: paragraph
+        ]
+
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelWidth,
+            pixelsHigh: pixelHeight,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return nil
+        }
+        rep.size = size
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSColor.clear.setFill()
+        CGRect(origin: .zero, size: size).fill()
+
+        let string = character.displayString as NSString
+        let textSize = string.size(withAttributes: attributes)
+        let drawRect = CGRect(
+            x: 0,
+            y: floor((size.height - textSize.height) / 2),
+            width: size.width,
+            height: ceil(textSize.height)
+        )
+        string.draw(in: drawRect, withAttributes: attributes)
+        NSGraphicsContext.restoreGraphicsState()
+
+        guard let image = rep.cgImage else {
+            return nil
+        }
+        cache.setObject(image, forKey: key)
+        return image
+    }
+}
+
 // A single character cell in the split-flap grid.
 //
 // Layer hierarchy (back → front inside panelLayer):
@@ -36,13 +103,14 @@ final class SplitFlapPanel {
 
     private let dividerLayer = CALayer()
 
-    // Text layers inside each container
-    private let staticTopText    = CATextLayer()
-    private let staticBottomText = CATextLayer()
-    let topFlapText    = CATextLayer()
-    let bottomFlapText = CATextLayer()
+    // Cached glyph bitmap layers inside each container.
+    private let staticTopText    = CALayer()
+    private let staticBottomText = CALayer()
+    let topFlapText    = CALayer()
+    let bottomFlapText = CALayer()
 
     private(set) var currentCharacter: SplitFlapCharacter = .space
+    private(set) var isFlipping = false
 
     private var w: CGFloat = 0
     private var h: CGFloat = 0
@@ -65,6 +133,8 @@ final class SplitFlapPanel {
         panelLayer.backgroundColor = BoardColors.panelBackground
         panelLayer.cornerRadius = 1
         panelLayer.masksToBounds = true
+        panelLayer.shouldRasterize = true
+        panelLayer.rasterizationScale = scale
 
         // Perspective applied to all sub-layers
         var persp = CATransform3DIdentity
@@ -126,7 +196,7 @@ final class SplitFlapPanel {
 
     private func setupContainer(
         _ container: CALayer,
-        textLayer: CATextLayer,
+        textLayer: CALayer,
         frame: CGRect,
         fontSize: CGFloat,
         scale: CGFloat,
@@ -157,23 +227,10 @@ final class SplitFlapPanel {
         }
         container.mask = maskLayer
 
-        // Text layer fills the full bounds so text renders in the same position
-        // regardless of which half is masked.
         textLayer.frame = frame
         textLayer.contentsScale = scale
-        textLayer.alignmentMode = .center
-        textLayer.foregroundColor = BoardColors.character
+        textLayer.contentsGravity = .resize
         textLayer.backgroundColor = CGColor.clear
-        textLayer.fontSize = fontSize
-        textLayer.isWrapped = false
-
-        // Use a monospaced font
-        let fontName = "SFMono-Regular"
-        if let f = NSFont(name: fontName, size: fontSize) {
-            textLayer.font = f
-        } else {
-            textLayer.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        }
 
         container.addSublayer(textLayer)
     }
@@ -183,16 +240,39 @@ final class SplitFlapPanel {
     /// Immediately set a character on all layers without animation.
     func setCharacter(_ char: SplitFlapCharacter, animated: Bool) {
         currentCharacter = char
+        isFlipping = false
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        let s = char.displayString as CFString
-        staticTopText.string    = s
-        staticBottomText.string = s
-        topFlapText.string      = s
-        bottomFlapText.string   = s
+        applyGlyph(char, to: staticTopText)
+        applyGlyph(char, to: staticBottomText)
+        applyGlyph(char, to: topFlapText)
+        applyGlyph(char, to: bottomFlapText)
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
+        panelLayer.shouldRasterize    = true
+        CATransaction.commit()
+    }
+
+    func beginFlipping() {
+        isFlipping = true
+        panelLayer.shouldRasterize = false
+    }
+
+    func cancelFlip() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        topFlapContainer.removeAllAnimations()
+        bottomFlapContainer.removeAllAnimations()
+        applyGlyph(currentCharacter, to: staticTopText)
+        applyGlyph(currentCharacter, to: staticBottomText)
+        applyGlyph(currentCharacter, to: topFlapText)
+        applyGlyph(currentCharacter, to: bottomFlapText)
+        topFlapContainer.transform = CATransform3DIdentity
+        bottomFlapContainer.transform = CATransform3DIdentity
+        bottomFlapContainer.isHidden = false
+        isFlipping = false
+        panelLayer.shouldRasterize = true
         CATransaction.commit()
     }
 
@@ -204,10 +284,10 @@ final class SplitFlapPanel {
     ) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        staticTopText.string    = fromChar.displayString as CFString
-        staticBottomText.string = (revealStaticBottom ? toChar : fromChar).displayString as CFString
-        topFlapText.string      = fromChar.displayString as CFString
-        bottomFlapText.string   = toChar.displayString  as CFString
+        applyGlyph(fromChar, to: staticTopText)
+        applyGlyph(revealStaticBottom ? toChar : fromChar, to: staticBottomText)
+        applyGlyph(fromChar, to: topFlapText)
+        applyGlyph(toChar, to: bottomFlapText)
         topFlapContainer.transform    = CATransform3DIdentity        // flat, visible
         bottomFlapContainer.transform = CATransform3DMakeRotation(.pi / 2, 1, 0, 0)
         bottomFlapContainer.isHidden  = true  // invisible until top flap finishes
@@ -215,18 +295,29 @@ final class SplitFlapPanel {
     }
 
     /// Called after a single flip step completes to snap to the final state.
-    func finalizeFlip(to char: SplitFlapCharacter) {
+    func finalizeFlip(to char: SplitFlapCharacter, done: Bool) {
         currentCharacter = char
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        let s = char.displayString as CFString
-        staticTopText.string    = s
-        staticBottomText.string = s
-        topFlapText.string      = s
-        bottomFlapText.string   = s
+        applyGlyph(char, to: staticTopText)
+        applyGlyph(char, to: staticBottomText)
+        applyGlyph(char, to: topFlapText)
+        applyGlyph(char, to: bottomFlapText)
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
+        if done {
+            isFlipping = false
+            panelLayer.shouldRasterize = true
+        }
         CATransaction.commit()
+    }
+
+    private func applyGlyph(_ character: SplitFlapCharacter, to layer: CALayer) {
+        layer.contents = GlyphImageCache.shared.image(
+            for: character,
+            size: CGSize(width: w, height: h),
+            scale: layer.contentsScale
+        )
     }
 }
