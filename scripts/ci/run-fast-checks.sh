@@ -24,7 +24,7 @@ awk '
 	/(static let|static var|lazy var).*DateFormatter/ {
 		in_cached_formatter = 1
 	}
-	/DateFormatter\(\)/ && !in_cached_formatter {
+	/(Foundation\.)?DateFormatter[[:space:]]*\(/ && !in_cached_formatter {
 		print "DisplayClock must cache DateFormatter instances instead of constructing them on the tick path."
 		exit 1
 	}
