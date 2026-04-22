@@ -14,3 +14,8 @@ else
 	echo "xcodebuild is unavailable on this runner; skipping the macOS build step."
 	echo "SplitFlap was still validated locally on macOS with the same command."
 fi
+
+if grep -q 'DispatchQueue\.main\.asyncAfter' SplitFlap/DisplayClock.swift; then
+	echo "DisplayClock must not schedule wave work with DispatchQueue.main.asyncAfter."
+	exit 1
+fi

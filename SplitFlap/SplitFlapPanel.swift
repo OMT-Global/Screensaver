@@ -197,11 +197,15 @@ final class SplitFlapPanel {
     }
 
     /// Configure layers for the start of a single flip step.
-    func prepareFlip(fromChar: SplitFlapCharacter, toChar: SplitFlapCharacter) {
+    func prepareFlip(
+        fromChar: SplitFlapCharacter,
+        toChar: SplitFlapCharacter,
+        revealStaticBottom: Bool = true
+    ) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         staticTopText.string    = fromChar.displayString as CFString
-        staticBottomText.string = toChar.displayString  as CFString
+        staticBottomText.string = (revealStaticBottom ? toChar : fromChar).displayString as CFString
         topFlapText.string      = fromChar.displayString as CFString
         bottomFlapText.string   = toChar.displayString  as CFString
         topFlapContainer.transform    = CATransform3DIdentity        // flat, visible
