@@ -33,6 +33,9 @@ enum SplitFlapCharacter: Int, CaseIterable {
     }
 
     static let count: Int = SplitFlapCharacter.allCases.count
+    private static let lookupByDisplayString: [String: SplitFlapCharacter] = {
+        Dictionary(uniqueKeysWithValues: allCases.map { ($0.displayString, $0) })
+    }()
 
     // Advance one step forward from this character.
     var next: SplitFlapCharacter {
@@ -57,6 +60,6 @@ enum SplitFlapCharacter: Int, CaseIterable {
     // Parse a single character string into a SplitFlapCharacter, or return .space.
     static func from(_ string: String) -> SplitFlapCharacter {
         let ch = string.uppercased()
-        return SplitFlapCharacter.allCases.first { $0.displayString == ch } ?? .space
+        return lookupByDisplayString[ch] ?? .space
     }
 }
