@@ -2,7 +2,7 @@ name: PR Fast CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: pr-fast-${{ github.event.pull_request.number || github.ref }}
@@ -10,7 +10,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
 
 env:
   NODE_VERSION: '20'
@@ -26,7 +25,6 @@ jobs:
     runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
     outputs:
       app: ${{ steps.filter.outputs.app }}
-      apple: ${{ steps.filter.outputs.apple }}
       ci: ${{ steps.filter.outputs.ci }}
     steps:
       - uses: dorny/paths-filter@v3
@@ -36,25 +34,19 @@ jobs:
             app:
               - 'project.bootstrap.yaml'
               - 'AGENTS.md'
-              - 'CLAUDE.md'
-              - '.devcontainer/**'
+              - 'CONTRIBUTING.md'
+              - '.github/PULL_REQUEST_TEMPLATE.md'
               - '.githooks/**'
               - '.github/workflows/**'
-              - 'SplitFlap/**'
-              - 'SplitFlap.xcodeproj/**'
               - 'scripts/**'
               - 'docs/bootstrap/**'
               - 'README.md'
               - 'docs/**'
-              - 'Makefile'
-            apple:
-              - 'SplitFlap/**'
-              - 'SplitFlap.xcodeproj/**'
             ci:
               - 'project.bootstrap.yaml'
               - 'AGENTS.md'
-              - 'CLAUDE.md'
-              - '.devcontainer/**'
+              - 'CONTRIBUTING.md'
+              - '.github/PULL_REQUEST_TEMPLATE.md'
               - '.githooks/**'
               - '.github/workflows/**'
               - 'scripts/**'
@@ -78,28 +70,54 @@ jobs:
       - name: Run fast checks
         run: bash scripts/ci/run-fast-checks.sh
 
-  macos-checks:
-    name: macOS Checks
-    runs-on: ['self-hosted', 'private', 'macOS', 'ARM64', 'xcode']
-    timeout-minutes: 15
-    needs: changes
-    if: >-
-      github.event.pull_request.draft == false &&
-      (needs.changes.outputs.apple == 'true' || needs.changes.outputs.ci == 'true')
+  validate-pr-description:
+    name: Validate PR Description
+    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+    timeout-minutes: 5
+    if: github.event.pull_request.draft == false
+    env:
+      PR_BODY: ${{ github.event.pull_request.body }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Run macOS build validation
+      - name: Require generated PR template content
         run: |
-          xcodebuild \
-            -project SplitFlap.xcodeproj \
-            -scheme SplitFlap \
-            -configuration Release \
-            -derivedDataPath build \
-            ONLY_ACTIVE_ARCH=NO \
-            build
+          failed=0
+
+          require_line() {
+            local line="$1"
+            if ! grep -Fqx "$line" <<<"$PR_BODY"; then
+              echo "Missing required PR section: $line"
+              failed=1
+            fi
+          }
+
+          require_line "## Summary"
+          require_line "## Governing Issue"
+          require_line "## Validation"
+          require_line "## Bootstrap Governance"
+          require_line "## Merge Automation"
+          require_line "## Notes"
+
+          if grep -Eiq 'Closes #$|#<issue-number>|what changed|why it changed|notable tradeoffs|migration or rollout notes|follow-up work if any' <<<"$PR_BODY"; then
+            echo "PR body still contains template placeholder text."
+            failed=1
+          fi
+
+          if ! grep -Eiq '(^|[[:space:]-])((close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+|no issue is linked|no linked issue|without a linked issue|no governing issue)' <<<"$PR_BODY"; then
+            echo "PR body must close/link an issue or explicitly explain why no issue is linked."
+            failed=1
+          fi
+
+          if ! grep -Eiq '(^|[[:space:]-])(\[[xX]\]|not run|not applicable|n/a)' <<<"$PR_BODY"; then
+            echo "PR body must include validation evidence, a checked validation item, or a reason validation was not run."
+            failed=1
+          fi
+
+          if ! grep -Eiq '(auto-merge is enabled|auto-merge enabled|auto merge is enabled|auto merge enabled|auto-merge.*(unavailable|unsafe|blocked|not supported)|auto merge.*(unavailable|unsafe|blocked|not supported))' <<<"$PR_BODY"; then
+            echo "PR body must state that auto-merge is enabled or explain why it is unavailable or unsafe."
+            failed=1
+          fi
+
+          exit "$failed"
 
   validate-secrets:
     name: Validate Secrets
@@ -120,7 +138,7 @@ jobs:
     needs:
       - changes
       - fast-checks
-      - macos-checks
+      - validate-pr-description
       - validate-secrets
     steps:
       - name: Check required PR jobs
@@ -128,7 +146,7 @@ jobs:
           RESULTS: >-
             changes=${{ needs.changes.result }}
             fast-checks=${{ needs.fast-checks.result }}
-            macos-checks=${{ needs.macos-checks.result }}
+            validate-pr-description=${{ needs.validate-pr-description.result }}
             validate-secrets=${{ needs.validate-secrets.result }}
         run: |
           failed=0
