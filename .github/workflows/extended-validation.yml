@@ -58,13 +58,12 @@ jobs:
               - '.github/PULL_REQUEST_TEMPLATE.md'
               - '.githooks/**'
               - '.github/workflows/**'
-              - 'SplitFlap/**'
-              - 'SplitFlap.xcodeproj/**'
               - 'scripts/**'
               - 'docs/bootstrap/**'
               - 'README.md'
               - 'docs/**'
-              - 'Makefile'
+              - 'SplitFlap/**'
+              - 'SplitFlap.xcodeproj/**'
             ci:
               - 'project.bootstrap.yaml'
               - 'AGENTS.md'
@@ -94,7 +93,7 @@ jobs:
 
   extended-checks:
     name: Extended Checks
-    runs-on: ['self-hosted', 'private', 'macOS', 'ARM64', 'xcode']
+    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
     timeout-minutes: 20
     needs: changes
     if: needs.changes.outputs.extended == 'true' || needs.changes.outputs.app == 'true'
