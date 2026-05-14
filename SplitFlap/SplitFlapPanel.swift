@@ -15,20 +15,28 @@ enum BoardColors {
 private final class GlyphImageCache {
     static let shared = GlyphImageCache()
 
+    enum Half: String { case top, bottom }
+
     private final class GlyphSurface {
         let surface: IOSurface
-
-        init(surface: IOSurface) {
-            self.surface = surface
-        }
+        init(surface: IOSurface) { self.surface = surface }
     }
 
     private let cache = NSCache<NSString, GlyphSurface>()
 
-    func contents(for character: SplitFlapCharacter, size: CGSize, scale: CGFloat) -> Any? {
-        let pixelWidth = max(1, Int((size.width * scale).rounded(.up)))
-        let pixelHeight = max(1, Int((size.height * scale).rounded(.up)))
-        let key = "\(character.rawValue)-\(pixelWidth)x\(pixelHeight)" as NSString
+    func contents(
+        for character: SplitFlapCharacter,
+        panelSize: CGSize,
+        scale: CGFloat,
+        half: Half
+    ) -> Any? {
+        let panelW = panelSize.width
+        let panelH = panelSize.height
+        let halfH = panelH / 2
+
+        let pixelWidth = max(1, Int((panelW * scale).rounded(.up)))
+        let pixelHalfHeight = max(1, Int((halfH * scale).rounded(.up)))
+        let key = "\(character.rawValue)-\(pixelWidth)x\(pixelHalfHeight)-\(half.rawValue)" as NSString
 
         if let cached = cache.object(forKey: key) {
             return cached.surface
@@ -36,7 +44,7 @@ private final class GlyphImageCache {
 
         let properties: [IOSurfacePropertyKey: any Sendable] = [
             .width: pixelWidth,
-            .height: pixelHeight,
+            .height: pixelHalfHeight,
             .bytesPerElement: 4,
             .pixelFormat: kCVPixelFormatType_32BGRA
         ]
@@ -51,7 +59,7 @@ private final class GlyphImageCache {
             _ = surface.unlock(options: [], seed: nil)
         }
 
-        let byteCount = surface.bytesPerRow * pixelHeight
+        let byteCount = surface.bytesPerRow * pixelHalfHeight
         _ = memset(surface.baseAddress, 0, byteCount)
 
         let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(
@@ -61,7 +69,7 @@ private final class GlyphImageCache {
               let context = CGContext(
                   data: surface.baseAddress,
                   width: pixelWidth,
-                  height: pixelHeight,
+                  height: pixelHalfHeight,
                   bitsPerComponent: 8,
                   bytesPerRow: surface.bytesPerRow,
                   space: colorSpace,
@@ -71,8 +79,14 @@ private final class GlyphImageCache {
         }
 
         context.scaleBy(x: scale, y: scale)
+        // Surface represents only the requested half of the panel. Translate so
+        // drawing the centered full-panel glyph lands in the correct half; the
+        // surface bounds clip the opposite half.
+        if half == .top {
+            context.translateBy(x: 0, y: -halfH)
+        }
 
-        let fontSize = size.height * 0.72
+        let fontSize = panelH * 0.72
         let font = NSFont(name: "SFMono-Regular", size: fontSize)
             ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         let paragraph = NSMutableParagraphStyle()
@@ -92,8 +106,8 @@ private final class GlyphImageCache {
         let textSize = string.size(withAttributes: attributes)
         let drawRect = CGRect(
             x: 0,
-            y: floor((size.height - textSize.height) / 2),
-            width: size.width,
+            y: floor((panelH - textSize.height) / 2),
+            width: panelW,
             height: ceil(textSize.height)
         )
         string.draw(in: drawRect, withAttributes: attributes)
@@ -108,35 +122,29 @@ private final class GlyphImageCache {
 // A single character cell in the split-flap grid.
 //
 // Layer hierarchy (back → front inside panelLayer):
-//   staticBottomContainer  — new char, bottom-half mask, always visible
-//   staticTopContainer     — old char, top-half mask, always visible
-//   bottomFlapContainer    — new char, bottom-half mask, rotates π/2→0
-//   topFlapContainer       — old char, top-half mask, rotates 0→-π/2
-//   dividerLayer           — 1-pt hairline at seam
+//   staticBottomLayer    — bottom half of new char, always visible
+//   staticTopLayer       — top half of old char, always visible
+//   bottomFlapContainer  — bottom half of new char, rotates π/2 → 0
+//   topFlapContainer     — top half of old char, rotates 0 → -π/2
+//   dividerLayer         — 1-pt hairline at seam
 //
-// Each *Container layer spans the FULL panel bounds (w×h).
-// A CAShapeLayer mask on each container clips it to show only the top or bottom half.
-// All text layers are also full-size (w×h), so text positioning is trivial — just y=0.
-// The anchor point for animated containers is set to the seam for correct rotation.
+// Each layer is a half-height tile holding only its half-glyph surface, so the
+// panel needs no mask layers and no offscreen compositing. Flap layers are
+// anchored at the seam edge so the rotation pivots around the seam.
 final class SplitFlapPanel {
 
     let panelLayer = CALayer()
 
-    // Static layers (never rotate, always visible behind flap layers)
-    private let staticTopContainer    = CALayer()
-    private let staticBottomContainer = CALayer()
+    // Static layers (never rotate, always visible behind flap layers).
+    private let staticTopLayer    = CALayer()
+    private let staticBottomLayer = CALayer()
 
-    // Animated flap layers
+    // Animated flap layers. Kept under their original public names so the
+    // animator can drive them by reference.
     let topFlapContainer    = CALayer()
     let bottomFlapContainer = CALayer()
 
     private let dividerLayer = CALayer()
-
-    // Cached glyph bitmap layers inside each container.
-    private let staticTopText    = CALayer()
-    private let staticBottomText = CALayer()
-    let topFlapText    = CALayer()
-    let bottomFlapText = CALayer()
 
     private(set) var currentCharacter: SplitFlapCharacter = .space
     private(set) var isFlipping = false
@@ -149,6 +157,7 @@ final class SplitFlapPanel {
     private var w: CGFloat = 0
     private var h: CGFloat = 0
     private var mid: CGFloat = 0
+    private var contentsScale: CGFloat = 1
 
     // MARK: - Setup
 
@@ -156,111 +165,64 @@ final class SplitFlapPanel {
         w = size.width
         h = size.height
         mid = size.height / 2
-        buildLayerTree(scale: scale)
+        contentsScale = scale
+        buildLayerTree()
         setCharacter(.space, animated: false)
     }
 
-    private func buildLayerTree(scale: CGFloat) {
-        // Root panel
+    private func buildLayerTree() {
         panelLayer.bounds = CGRect(x: 0, y: 0, width: w, height: h)
         panelLayer.anchorPoint = CGPoint(x: 0, y: 0)
         panelLayer.backgroundColor = BoardColors.panelBackground
         panelLayer.cornerRadius = 1
         panelLayer.masksToBounds = true
-        panelLayer.shouldRasterize = true
-        panelLayer.rasterizationScale = scale
 
-        // Perspective applied to all sub-layers
         var persp = CATransform3DIdentity
         persp.m34 = -1.0 / 500.0
         panelLayer.sublayerTransform = persp
 
-        let fullFrame = CGRect(x: 0, y: 0, width: w, height: h)
+        configureHalfLayer(staticTopLayer,    half: .top,    isFlap: false)
+        configureHalfLayer(staticBottomLayer, half: .bottom, isFlap: false)
+        configureHalfLayer(topFlapContainer,  half: .top,    isFlap: true)
+        configureHalfLayer(bottomFlapContainer, half: .bottom, isFlap: true)
 
-        // --- Static top (shows current char, top half) ---
-        setupContainer(staticTopContainer,
-                       textLayer: staticTopText,
-                       frame: fullFrame,
-                       scale: scale,
-                       showTop: true,
-                       anchorAtSeam: false)
-
-        // --- Static bottom (shows next char, bottom half) ---
-        setupContainer(staticBottomContainer,
-                       textLayer: staticBottomText,
-                       frame: fullFrame,
-                       scale: scale,
-                       showTop: false,
-                       anchorAtSeam: false)
-
-        // --- Top flap (animates 0 → -π/2) ---
-        setupContainer(topFlapContainer,
-                       textLayer: topFlapText,
-                       frame: fullFrame,
-                       scale: scale,
-                       showTop: true,
-                       anchorAtSeam: true)  // pivot at seam
-        topFlapContainer.isDoubleSided = false
-
-        // --- Bottom flap (animates π/2 → 0) ---
-        setupContainer(bottomFlapContainer,
-                       textLayer: bottomFlapText,
-                       frame: fullFrame,
-                       scale: scale,
-                       showTop: false,
-                       anchorAtSeam: true)  // pivot at seam
+        topFlapContainer.isDoubleSided    = false
         bottomFlapContainer.isDoubleSided = false
 
-        // --- Hairline divider ---
         dividerLayer.frame = CGRect(x: 0, y: mid - 0.5, width: w, height: 1)
         dividerLayer.backgroundColor = BoardColors.divider
 
-        // Add in back-to-front order
-        panelLayer.addSublayer(staticBottomContainer)
-        panelLayer.addSublayer(staticTopContainer)
+        panelLayer.addSublayer(staticBottomLayer)
+        panelLayer.addSublayer(staticTopLayer)
         panelLayer.addSublayer(bottomFlapContainer)
         panelLayer.addSublayer(topFlapContainer)
         panelLayer.addSublayer(dividerLayer)
     }
 
-    private func setupContainer(
-        _ container: CALayer,
-        textLayer: CALayer,
-        frame: CGRect,
-        scale: CGFloat,
-        showTop: Bool,
-        anchorAtSeam: Bool
-    ) {
-        container.bounds = frame
-        container.backgroundColor = CGColor.clear
+    private func configureHalfLayer(_ layer: CALayer, half: GlyphImageCache.Half, isFlap: Bool) {
+        layer.bounds = CGRect(x: 0, y: 0, width: w, height: mid)
+        layer.contentsScale = contentsScale
+        layer.contentsGravity = .resize
+        layer.backgroundColor = CGColor.clear
 
-        if anchorAtSeam {
-            // Anchor at the seam so rotation pivots around the seam line.
-            // anchorPoint.y = mid/h (seam fraction from bottom).
-            // position = (w/2, mid) so anchor sits at the seam in panel space.
-            container.anchorPoint = CGPoint(x: 0.5, y: mid / h)
-            container.position = CGPoint(x: w / 2, y: mid)
-        } else {
-            // Centered (default); frame will be set directly below.
-            container.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            container.position = CGPoint(x: w / 2, y: h / 2)
+        switch (half, isFlap) {
+        case (.top, false):
+            // Static top half: panel y in [mid, h]; centered anchor.
+            layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            layer.position    = CGPoint(x: w / 2, y: mid + mid / 2)
+        case (.bottom, false):
+            // Static bottom half: panel y in [0, mid].
+            layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            layer.position    = CGPoint(x: w / 2, y: mid / 2)
+        case (.top, true):
+            // Top flap: pivots around its bottom edge (the seam).
+            layer.anchorPoint = CGPoint(x: 0.5, y: 0)
+            layer.position    = CGPoint(x: w / 2, y: mid)
+        case (.bottom, true):
+            // Bottom flap: pivots around its top edge (the seam).
+            layer.anchorPoint = CGPoint(x: 0.5, y: 1)
+            layer.position    = CGPoint(x: w / 2, y: mid)
         }
-
-        // Mask to show only top or bottom half
-        let maskLayer = CAShapeLayer()
-        if showTop {
-            maskLayer.path = CGPath(rect: CGRect(x: 0, y: mid, width: w, height: mid), transform: nil)
-        } else {
-            maskLayer.path = CGPath(rect: CGRect(x: 0, y: 0, width: w, height: mid), transform: nil)
-        }
-        container.mask = maskLayer
-
-        textLayer.frame = frame
-        textLayer.contentsScale = scale
-        textLayer.contentsGravity = .resize
-        textLayer.backgroundColor = CGColor.clear
-
-        container.addSublayer(textLayer)
     }
 
     // MARK: - Public API
@@ -271,20 +233,18 @@ final class SplitFlapPanel {
         isFlipping = false
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        applyGlyph(char, to: staticTopText, storedIn: \.staticTopCharacter)
-        applyGlyph(char, to: staticBottomText, storedIn: \.staticBottomCharacter)
-        applyGlyph(char, to: topFlapText, storedIn: \.topFlapCharacter)
-        applyGlyph(char, to: bottomFlapText, storedIn: \.bottomFlapCharacter)
+        applyGlyph(char, half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
+        applyGlyph(char, half: .bottom, to: staticBottomLayer,   storedIn: \.staticBottomCharacter)
+        applyGlyph(char, half: .top,    to: topFlapContainer,    storedIn: \.topFlapCharacter)
+        applyGlyph(char, half: .bottom, to: bottomFlapContainer, storedIn: \.bottomFlapCharacter)
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
-        panelLayer.shouldRasterize    = true
         CATransaction.commit()
     }
 
     func beginFlipping() {
         isFlipping = true
-        panelLayer.shouldRasterize = false
     }
 
     func cancelFlip() {
@@ -292,15 +252,14 @@ final class SplitFlapPanel {
         CATransaction.setDisableActions(true)
         topFlapContainer.removeAllAnimations()
         bottomFlapContainer.removeAllAnimations()
-        applyGlyph(currentCharacter, to: staticTopText, storedIn: \.staticTopCharacter)
-        applyGlyph(currentCharacter, to: staticBottomText, storedIn: \.staticBottomCharacter)
-        applyGlyph(currentCharacter, to: topFlapText, storedIn: \.topFlapCharacter)
-        applyGlyph(currentCharacter, to: bottomFlapText, storedIn: \.bottomFlapCharacter)
-        topFlapContainer.transform = CATransform3DIdentity
+        applyGlyph(currentCharacter, half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
+        applyGlyph(currentCharacter, half: .bottom, to: staticBottomLayer,   storedIn: \.staticBottomCharacter)
+        applyGlyph(currentCharacter, half: .top,    to: topFlapContainer,    storedIn: \.topFlapCharacter)
+        applyGlyph(currentCharacter, half: .bottom, to: bottomFlapContainer, storedIn: \.bottomFlapCharacter)
+        topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
-        bottomFlapContainer.isHidden = false
+        bottomFlapContainer.isHidden  = false
         isFlipping = false
-        panelLayer.shouldRasterize = true
         CATransaction.commit()
     }
 
@@ -309,37 +268,15 @@ final class SplitFlapPanel {
         w = size.width
         h = size.height
         mid = size.height / 2
-
-        let fullFrame = CGRect(x: 0, y: 0, width: w, height: h)
+        contentsScale = scale
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        panelLayer.bounds = fullFrame
-        panelLayer.rasterizationScale = scale
-        updateContainer(staticTopContainer,
-                        textLayer: staticTopText,
-                        frame: fullFrame,
-                        scale: scale,
-                        showTop: true,
-                        anchorAtSeam: false)
-        updateContainer(staticBottomContainer,
-                        textLayer: staticBottomText,
-                        frame: fullFrame,
-                        scale: scale,
-                        showTop: false,
-                        anchorAtSeam: false)
-        updateContainer(topFlapContainer,
-                        textLayer: topFlapText,
-                        frame: fullFrame,
-                        scale: scale,
-                        showTop: true,
-                        anchorAtSeam: true)
-        updateContainer(bottomFlapContainer,
-                        textLayer: bottomFlapText,
-                        frame: fullFrame,
-                        scale: scale,
-                        showTop: false,
-                        anchorAtSeam: true)
+        panelLayer.bounds = CGRect(x: 0, y: 0, width: w, height: h)
+        configureHalfLayer(staticTopLayer,      half: .top,    isFlap: false)
+        configureHalfLayer(staticBottomLayer,   half: .bottom, isFlap: false)
+        configureHalfLayer(topFlapContainer,    half: .top,    isFlap: true)
+        configureHalfLayer(bottomFlapContainer, half: .bottom, isFlap: true)
         dividerLayer.frame = CGRect(x: 0, y: mid - 0.5, width: w, height: 1)
         refreshGlyphs()
         CATransaction.commit()
@@ -368,10 +305,11 @@ final class SplitFlapPanel {
         toChar: SplitFlapCharacter,
         revealStaticBottom: Bool
     ) {
-        applyGlyph(fromChar, to: staticTopText, storedIn: \.staticTopCharacter)
-        applyGlyph(revealStaticBottom ? toChar : fromChar, to: staticBottomText, storedIn: \.staticBottomCharacter)
-        applyGlyph(fromChar, to: topFlapText, storedIn: \.topFlapCharacter)
-        applyGlyph(toChar, to: bottomFlapText, storedIn: \.bottomFlapCharacter)
+        applyGlyph(fromChar, half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
+        applyGlyph(revealStaticBottom ? toChar : fromChar,
+                   half: .bottom, to: staticBottomLayer, storedIn: \.staticBottomCharacter)
+        applyGlyph(fromChar, half: .top,    to: topFlapContainer,    storedIn: \.topFlapCharacter)
+        applyGlyph(toChar,   half: .bottom, to: bottomFlapContainer, storedIn: \.bottomFlapCharacter)
         topFlapContainer.transform    = CATransform3DIdentity        // flat, visible
         bottomFlapContainer.transform = CATransform3DMakeRotation(.pi / 2, 1, 0, 0)
         bottomFlapContainer.isHidden  = true  // invisible until top flap finishes
@@ -382,69 +320,38 @@ final class SplitFlapPanel {
         currentCharacter = char
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        applyGlyph(char, to: staticTopText, storedIn: \.staticTopCharacter)
-        applyGlyph(char, to: staticBottomText, storedIn: \.staticBottomCharacter)
-        applyGlyph(char, to: topFlapText, storedIn: \.topFlapCharacter)
-        applyGlyph(char, to: bottomFlapText, storedIn: \.bottomFlapCharacter)
+        applyGlyph(char, half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
+        applyGlyph(char, half: .bottom, to: staticBottomLayer,   storedIn: \.staticBottomCharacter)
+        applyGlyph(char, half: .top,    to: topFlapContainer,    storedIn: \.topFlapCharacter)
+        applyGlyph(char, half: .bottom, to: bottomFlapContainer, storedIn: \.bottomFlapCharacter)
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
         if done {
             isFlipping = false
-            panelLayer.shouldRasterize = true
         }
         CATransaction.commit()
     }
 
     private func applyGlyph(
         _ character: SplitFlapCharacter,
+        half: GlyphImageCache.Half,
         to layer: CALayer,
         storedIn keyPath: ReferenceWritableKeyPath<SplitFlapPanel, SplitFlapCharacter>
     ) {
         self[keyPath: keyPath] = character
         layer.contents = GlyphImageCache.shared.contents(
             for: character,
-            size: CGSize(width: w, height: h),
-            scale: layer.contentsScale
+            panelSize: CGSize(width: w, height: h),
+            scale: layer.contentsScale,
+            half: half
         )
     }
 
     private func refreshGlyphs() {
-        applyGlyph(staticTopCharacter, to: staticTopText, storedIn: \.staticTopCharacter)
-        applyGlyph(staticBottomCharacter, to: staticBottomText, storedIn: \.staticBottomCharacter)
-        applyGlyph(topFlapCharacter, to: topFlapText, storedIn: \.topFlapCharacter)
-        applyGlyph(bottomFlapCharacter, to: bottomFlapText, storedIn: \.bottomFlapCharacter)
-    }
-
-    private func updateContainer(
-        _ container: CALayer,
-        textLayer: CALayer,
-        frame: CGRect,
-        scale: CGFloat,
-        showTop: Bool,
-        anchorAtSeam: Bool
-    ) {
-        container.bounds = frame
-
-        if anchorAtSeam {
-            container.anchorPoint = CGPoint(x: 0.5, y: mid / h)
-            container.position = CGPoint(x: w / 2, y: mid)
-        } else {
-            container.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            container.position = CGPoint(x: w / 2, y: h / 2)
-        }
-
-        if let maskLayer = container.mask as? CAShapeLayer {
-            if showTop {
-                maskLayer.path = CGPath(rect: CGRect(x: 0, y: mid, width: w, height: mid), transform: nil)
-            } else {
-                maskLayer.path = CGPath(rect: CGRect(x: 0, y: 0, width: w, height: mid), transform: nil)
-            }
-        }
-
-        textLayer.frame = frame
-        textLayer.contentsScale = scale
-        textLayer.contentsGravity = .resize
-        textLayer.backgroundColor = CGColor.clear
+        applyGlyph(staticTopCharacter,    half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
+        applyGlyph(staticBottomCharacter, half: .bottom, to: staticBottomLayer,   storedIn: \.staticBottomCharacter)
+        applyGlyph(topFlapCharacter,      half: .top,    to: topFlapContainer,    storedIn: \.topFlapCharacter)
+        applyGlyph(bottomFlapCharacter,   half: .bottom, to: bottomFlapContainer, storedIn: \.bottomFlapCharacter)
     }
 }
