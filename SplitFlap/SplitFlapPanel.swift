@@ -167,8 +167,6 @@ final class SplitFlapPanel {
         panelLayer.backgroundColor = BoardColors.panelBackground
         panelLayer.cornerRadius = 1
         panelLayer.masksToBounds = true
-        panelLayer.shouldRasterize = true
-        panelLayer.rasterizationScale = scale
 
         // Perspective applied to all sub-layers
         var persp = CATransform3DIdentity
@@ -278,13 +276,11 @@ final class SplitFlapPanel {
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
-        panelLayer.shouldRasterize    = true
         CATransaction.commit()
     }
 
     func beginFlipping() {
         isFlipping = true
-        panelLayer.shouldRasterize = false
     }
 
     func cancelFlip() {
@@ -300,7 +296,6 @@ final class SplitFlapPanel {
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden = false
         isFlipping = false
-        panelLayer.shouldRasterize = true
         CATransaction.commit()
     }
 
@@ -315,7 +310,6 @@ final class SplitFlapPanel {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         panelLayer.bounds = fullFrame
-        panelLayer.rasterizationScale = scale
         updateContainer(staticTopContainer,
                         textLayer: staticTopText,
                         frame: fullFrame,
@@ -391,7 +385,6 @@ final class SplitFlapPanel {
         bottomFlapContainer.isHidden  = false
         if done {
             isFlipping = false
-            panelLayer.shouldRasterize = true
         }
         CATransaction.commit()
     }
