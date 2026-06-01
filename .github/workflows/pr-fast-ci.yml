@@ -85,7 +85,7 @@ jobs:
     needs: changes
     if: >-
       github.event.pull_request.draft == false &&
-      (needs.changes.outputs.apple == 'true' || needs.changes.outputs.ci == 'true')
+      needs.changes.outputs.apple == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
