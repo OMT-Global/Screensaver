@@ -22,7 +22,7 @@ private final class GlyphImageCache {
         init(surface: IOSurface) { self.surface = surface }
     }
 
-    private let cache = NSCache<NSString, GlyphSurface>()
+    private let cache = NSCache<NSNumber, GlyphSurface>()
 
     func contents(
         for character: SplitFlapCharacter,
@@ -36,7 +36,14 @@ private final class GlyphImageCache {
 
         let pixelWidth = max(1, Int((panelW * scale).rounded(.up)))
         let pixelHalfHeight = max(1, Int((halfH * scale).rounded(.up)))
-        let key = "\(character.rawValue)-\(pixelWidth)x\(pixelHalfHeight)-\(half.rawValue)" as NSString
+        // Pack the cache identity into a single integer so the hot glyph lookup
+        // (called for every keyframe of every flip) allocates nothing — no
+        // per-call interpolated string. Field widths comfortably fit even an
+        // 8K display: half-height/width stay well under 2^14 pixels.
+        let halfBit = (half == .top) ? 0 : 1
+        let key = NSNumber(
+            value: (pixelWidth << 21) | (pixelHalfHeight << 7) | (character.rawValue << 1) | halfBit
+        )
 
         if let cached = cache.object(forKey: key) {
             return cached.surface
@@ -116,6 +123,25 @@ private final class GlyphImageCache {
         let glyphSurface = GlyphSurface(surface: surface)
         cache.setObject(glyphSurface, forKey: key)
         return surface
+    }
+}
+
+// Fires exactly once when a batched flip animation finishes (or is torn down).
+// The guard prevents a re-entrant callback when the panel removes the
+// animations from inside the completion handler.
+private final class FlipCompletionDelegate: NSObject, CAAnimationDelegate {
+    private var didFire = false
+    private let handler: (Bool) -> Void
+
+    init(_ handler: @escaping (Bool) -> Void) {
+        self.handler = handler
+        super.init()
+    }
+
+    func animationDidStop(_ animation: CAAnimation, finished: Bool) {
+        guard !didFire else { return }
+        didFire = true
+        handler(finished)
     }
 }
 
@@ -250,6 +276,8 @@ final class SplitFlapPanel {
     func cancelFlip() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        staticTopLayer.removeAllAnimations()
+        staticBottomLayer.removeAllAnimations()
         topFlapContainer.removeAllAnimations()
         bottomFlapContainer.removeAllAnimations()
         applyGlyph(currentCharacter, half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
@@ -259,6 +287,7 @@ final class SplitFlapPanel {
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
+        bottomFlapContainer.opacity   = 1
         isFlipping = false
         CATransaction.commit()
     }
@@ -282,40 +311,179 @@ final class SplitFlapPanel {
         CATransaction.commit()
     }
 
-    /// Configure layers for the start of a single flip step.
-    func prepareFlip(
-        fromChar: SplitFlapCharacter,
-        toChar: SplitFlapCharacter,
-        revealStaticBottom: Bool = true,
-        batchedTransaction: Bool = false
+    /// Animate a full multi-step flip to `target` entirely on the render
+    /// server. Every intermediate character and both half-flap rotations are
+    /// encoded once as keyframe animations and committed in a single pass, so
+    /// no per-step main-thread work runs while the flip plays. A single
+    /// completion fires when the whole sequence settles.
+    ///
+    /// When `beginTime` is in the future the panel keeps showing its current
+    /// character (its untouched model state) until then — this is how the wave
+    /// sweep staggers without per-panel timers.
+    func flip(
+        to target: SplitFlapCharacter,
+        beginTime: CFTimeInterval,
+        batchedTransaction: Bool,
+        shouldContinue: @escaping () -> Bool,
+        completion: (() -> Void)?
     ) {
-        if batchedTransaction {
-            applyPreparedFlipState(fromChar: fromChar, toChar: toChar, revealStaticBottom: revealStaticBottom)
-            return
+        let steps = currentCharacter.stepsTo(target)
+        guard steps > 0 else { completion?(); return }
+        guard !isFlipping else { completion?(); return }
+
+        // Drum sequence: seq[0] == current, seq[steps] == target.
+        var seq: [SplitFlapCharacter] = [currentCharacter]
+        seq.reserveCapacity(steps + 1)
+        var ch = currentCharacter
+        for _ in 0..<steps {
+            ch = ch.next
+            seq.append(ch)
         }
 
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        applyPreparedFlipState(fromChar: fromChar, toChar: toChar, revealStaticBottom: revealStaticBottom)
-        CATransaction.commit()
+        // Pre-resolve every glyph half the sequence will show. If any surface
+        // is unavailable, fall back to a plain snap so the board still reaches
+        // the target character.
+        var topGlyphs: [Any] = []       // top halves of seq[0...steps]
+        var bottomGlyphs: [Any] = []    // bottom halves of seq[1...steps]
+        topGlyphs.reserveCapacity(steps + 1)
+        bottomGlyphs.reserveCapacity(steps)
+        for (index, character) in seq.enumerated() {
+            guard let top = glyph(character, .top) else {
+                setCharacter(target, animated: false); completion?(); return
+            }
+            topGlyphs.append(top)
+            if index > 0 {
+                guard let bottom = glyph(character, .bottom) else {
+                    setCharacter(target, animated: false); completion?(); return
+                }
+                bottomGlyphs.append(bottom)
+            }
+        }
+
+        beginFlipping()
+
+        let fall  = FlipAnimator.topFallDuration
+        let rise  = FlipAnimator.bottomRiseDuration
+        let pause = FlipAnimator.interStepPause
+        let span  = fall + rise + pause            // one mechanical step
+        let total = Double(steps) * span
+        let kFall = fall / span                     // fraction of a step spent falling
+        let kRise = (fall + rise) / span            // fraction elapsed once risen
+
+        let easeIn  = CAMediaTimingFunction(name: .easeIn)
+        let easeOut = CAMediaTimingFunction(name: .easeOut)
+        let linear  = CAMediaTimingFunction(name: .linear)
+
+        // Top flap: falls 0 -> -90deg (revealing the new top behind it), then
+        // stays folded/edge-on; the per-step jump back to flat is invisible
+        // because the static top already shows the settled character.
+        let topRotation = CAKeyframeAnimation(keyPath: "transform.rotation.x")
+        topRotation.values = [0.0, -Double.pi / 2, -Double.pi / 2, -Double.pi / 2].map { NSNumber(value: $0) }
+        topRotation.keyTimes = [0.0, kFall, kRise, 1.0].map { NSNumber(value: $0) }
+        topRotation.timingFunctions = [easeIn, linear, linear]
+        topRotation.duration = span
+        topRotation.repeatCount = Float(steps)
+
+        // Bottom flap: stays folded during the fall, then rises 90deg -> flat.
+        let bottomRotation = CAKeyframeAnimation(keyPath: "transform.rotation.x")
+        bottomRotation.values = [Double.pi / 2, Double.pi / 2, 0.0, 0.0].map { NSNumber(value: $0) }
+        bottomRotation.keyTimes = [0.0, kFall, kRise, 1.0].map { NSNumber(value: $0) }
+        bottomRotation.timingFunctions = [linear, easeOut, linear]
+        bottomRotation.duration = span
+        bottomRotation.repeatCount = Float(steps)
+
+        // Bottom flap is invisible while folded (during the fall) and visible as
+        // it rises — reproducing the old per-step isHidden toggle with no timer.
+        // Discrete keyTimes need one more entry than values.
+        let bottomOpacity = CAKeyframeAnimation(keyPath: "opacity")
+        bottomOpacity.values = [0.0, 1.0].map { NSNumber(value: $0) }
+        bottomOpacity.keyTimes = [0.0, kFall, 1.0].map { NSNumber(value: $0) }
+        bottomOpacity.calculationMode = .discrete
+        bottomOpacity.duration = span
+        bottomOpacity.repeatCount = Float(steps)
+
+        // Glyph tracks span the whole flip. Top halves advance one character as
+        // each step settles (after the rise); bottom halves show the incoming
+        // character for the full step. Discrete mode => keyTimes = values + 1.
+        var topKeyTimes: [NSNumber] = [NSNumber(value: 0)]
+        topKeyTimes.reserveCapacity(steps + 2)
+        for i in 0..<steps {
+            topKeyTimes.append(NSNumber(value: (Double(i) * span + fall + rise) / total))
+        }
+        topKeyTimes.append(NSNumber(value: 1))
+
+        var bottomKeyTimes: [NSNumber] = [NSNumber(value: 0)]
+        bottomKeyTimes.reserveCapacity(steps + 1)
+        for i in 1..<steps {
+            bottomKeyTimes.append(NSNumber(value: Double(i) * span / total))
+        }
+        bottomKeyTimes.append(NSNumber(value: 1))
+
+        func glyphTrack(_ values: [Any], _ keyTimes: [NSNumber]) -> CAKeyframeAnimation {
+            let track = CAKeyframeAnimation(keyPath: "contents")
+            track.values = values
+            track.keyTimes = keyTimes
+            track.calculationMode = .discrete
+            track.duration = total
+            return track
+        }
+
+        // The top-flap glyph track spans the full duration and anchors the
+        // single completion callback for the whole flip.
+        let topFlapTrack = glyphTrack(topGlyphs, topKeyTimes)
+        topFlapTrack.delegate = FlipCompletionDelegate { [weak self] finished in
+            guard let self = self else { return }
+            guard finished, shouldContinue() else { completion?(); return }
+            self.concludeFlip(to: target)
+            completion?()
+        }
+
+        let tracks: [(CALayer, String, CAKeyframeAnimation)] = [
+            (staticTopLayer,      "flipTopGlyph",    glyphTrack(topGlyphs, topKeyTimes)),
+            (staticBottomLayer,   "flipBottomGlyph", glyphTrack(bottomGlyphs, bottomKeyTimes)),
+            (topFlapContainer,    "flipRotation",    topRotation),
+            (topFlapContainer,    "flipTopGlyph",    topFlapTrack),
+            (bottomFlapContainer, "flipRotation",    bottomRotation),
+            (bottomFlapContainer, "flipOpacity",     bottomOpacity),
+            (bottomFlapContainer, "flipBottomGlyph", glyphTrack(bottomGlyphs, bottomKeyTimes)),
+        ]
+
+        if !batchedTransaction {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+        }
+        for (layer, key, anim) in tracks {
+            anim.beginTime = beginTime
+            anim.fillMode = .forwards           // hold the settled state until concludeFlip
+            anim.isRemovedOnCompletion = false
+            layer.add(anim, forKey: key)
+        }
+        if !batchedTransaction {
+            CATransaction.commit()
+        }
     }
 
-    private func applyPreparedFlipState(
-        fromChar: SplitFlapCharacter,
-        toChar: SplitFlapCharacter,
-        revealStaticBottom: Bool
-    ) {
-        applyGlyph(fromChar, half: .top,    to: staticTopLayer,      storedIn: \.staticTopCharacter)
-        applyGlyph(revealStaticBottom ? toChar : fromChar,
-                   half: .bottom, to: staticBottomLayer, storedIn: \.staticBottomCharacter)
-        applyGlyph(fromChar, half: .top,    to: topFlapContainer,    storedIn: \.topFlapCharacter)
-        applyGlyph(toChar,   half: .bottom, to: bottomFlapContainer, storedIn: \.bottomFlapCharacter)
-        topFlapContainer.transform    = CATransform3DIdentity        // flat, visible
-        bottomFlapContainer.transform = CATransform3DMakeRotation(.pi / 2, 1, 0, 0)
-        bottomFlapContainer.isHidden  = true  // invisible until top flap finishes
+    private func glyph(_ character: SplitFlapCharacter, _ half: GlyphImageCache.Half) -> Any? {
+        GlyphImageCache.shared.contents(
+            for: character,
+            panelSize: CGSize(width: w, height: h),
+            scale: contentsScale,
+            half: half
+        )
     }
 
-    /// Called after a single flip step completes to snap to the final state.
+    /// Settle the panel onto its final character and drop the flip animations
+    /// in one transaction so the presentation never flickers back to the model.
+    private func concludeFlip(to char: SplitFlapCharacter) {
+        staticTopLayer.removeAllAnimations()
+        staticBottomLayer.removeAllAnimations()
+        topFlapContainer.removeAllAnimations()
+        bottomFlapContainer.removeAllAnimations()
+        finalizeFlip(to: char, done: true)
+    }
+
+    /// Snap the panel's model state to its final character. Called once when a
+    /// flip settles (and reused to reset state elsewhere).
     func finalizeFlip(to char: SplitFlapCharacter, done: Bool) {
         currentCharacter = char
         CATransaction.begin()
@@ -327,6 +495,7 @@ final class SplitFlapPanel {
         topFlapContainer.transform    = CATransform3DIdentity
         bottomFlapContainer.transform = CATransform3DIdentity
         bottomFlapContainer.isHidden  = false
+        bottomFlapContainer.opacity   = 1
         if done {
             isFlipping = false
         }

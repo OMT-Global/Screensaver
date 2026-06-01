@@ -219,6 +219,10 @@ final class DisplayClock: NSObject {
         var attempts = 0
         let maxAttempts = all.count * 2
 
+        // Add every flip started this tick inside one transaction so the tick
+        // produces a single render-server commit instead of one per panel.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         while started < flipCount && attempts < maxAttempts {
             attempts += 1
             let index = Int.random(in: 0..<all.count)
@@ -231,10 +235,12 @@ final class DisplayClock: NSObject {
             animator.animateTo(
                 target,
                 panel: panel,
+                batchedTransaction: true,
                 shouldContinue: { [weak self] in self?.isCurrentGeneration(generation) ?? false }
             )
             started += 1
         }
+        CATransaction.commit()
     }
 
     // MARK: - Wave phase
