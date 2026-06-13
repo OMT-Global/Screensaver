@@ -288,12 +288,40 @@ ci:
     reusableWorkflowRef: refs/heads/main
 release:
   enabled: true
+  maturity: simple
   tagPrefix: v
   createGitHubRelease: true
   updateMajorTag: true
   updateMinorTag: true
   reusableWorkflowRepo: OMT-Global/bootstrap
   reusableWorkflowRef: refs/heads/main
+  changelog:
+    enabled: true
+    mode: github-generated-notes
+    categories:
+      - title: Features
+        labels:
+          - type:feature
+      - title: Fixes
+        labels:
+          - type:bug
+      - title: Operations
+        labels:
+          - area:infra
+          - area:qa
+      - title: Documentation
+        labels:
+          - kind:docs
+          - documentation
+  versions: []
+  artifacts:
+    directory: dist/release
+    checksum: sha256
+    sbom: optional
+  publish:
+    githubReleaseAssets: true
+    packages: []
+    containers: []
 agents:
   manageCodexHome: true
   codexProfile: default

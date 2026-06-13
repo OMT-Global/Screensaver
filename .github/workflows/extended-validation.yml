@@ -25,7 +25,7 @@ defaults:
 jobs:
   changes:
     name: Detect Extended Validation Scope
-    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+    runs-on: ['self-hosted', 'linux', 'shell-only', 'public']
     outputs:
       app: ${{ steps.preset.outputs.app || steps.filter.outputs.app || 'false' }}
       ci: ${{ steps.preset.outputs.ci || steps.filter.outputs.ci || 'false' }}
@@ -81,7 +81,7 @@ jobs:
 
   fast-checks:
     name: Fast Checks
-    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+    runs-on: ['self-hosted', 'linux', 'shell-only', 'public']
     timeout-minutes: 15
     needs: changes
     if: needs.changes.outputs.app == 'true' || needs.changes.outputs.ci == 'true'
@@ -93,19 +93,38 @@ jobs:
 
   extended-checks:
     name: Extended Checks
-    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+    runs-on: ['self-hosted', 'linux', 'shell-only', 'public']
     timeout-minutes: 20
     needs: changes
-    if: needs.changes.outputs.extended == 'true' || needs.changes.outputs.app == 'true'
+    if: needs.changes.outputs.extended == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - name: Run extended validation
         run: bash scripts/ci/run-extended-validation.sh
 
+  macos-checks:
+    name: macOS Checks
+    runs-on: ['self-hosted', 'private', 'macOS', 'ARM64', 'xcode']
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run macOS validation
+        run: |
+          xcodebuild \
+            -project SplitFlap.xcodeproj \
+            -scheme SplitFlap \
+            -configuration Release \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            build
+
   validate-secrets:
     name: Validate Secrets
-    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+    runs-on: ['self-hosted', 'linux', 'shell-only', 'public']
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -114,12 +133,13 @@ jobs:
 
   extended-validation-gate:
     name: Extended Validation Gate
-    runs-on: ['self-hosted', 'synology', 'shell-only', 'public']
+    runs-on: ['self-hosted', 'linux', 'shell-only', 'public']
     if: always()
     needs:
       - changes
       - fast-checks
       - extended-checks
+      - macos-checks
       - validate-secrets
     steps:
       - name: Check extended validation jobs
@@ -128,6 +148,7 @@ jobs:
             changes=${{ needs.changes.result }}
             fast-checks=${{ needs.fast-checks.result }}
             extended-checks=${{ needs.extended-checks.result }}
+            macos-checks=${{ needs.macos-checks.result }}
             validate-secrets=${{ needs.validate-secrets.result }}
         run: |
           failed=0
