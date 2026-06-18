@@ -10,6 +10,7 @@ private protocol DisplayTicker: AnyObject {
 @available(macOS 14.0, *)
 private final class CADisplayTicker: NSObject, DisplayTicker {
     private var link: CADisplayLink?
+    private var isInvalidated = false
     private let onFrame: (CFTimeInterval) -> Void
 
     init?(screen: NSScreen?, onFrame: @escaping (CFTimeInterval) -> Void) {
@@ -32,17 +33,20 @@ private final class CADisplayTicker: NSObject, DisplayTicker {
     }
 
     func invalidate() {
+        isInvalidated = true
         link?.invalidate()
         link = nil
     }
 
     @objc private func tick(_ link: CADisplayLink) {
+        guard !isInvalidated else { return }
         onFrame(link.targetTimestamp > 0 ? link.targetTimestamp : link.timestamp)
     }
 }
 
 private final class CVDisplayTicker: DisplayTicker {
     private var link: CVDisplayLink?
+    private var isInvalidated = false
     private let onFrame: (CFTimeInterval) -> Void
 
     init?(onFrame: @escaping (CFTimeInterval) -> Void) {
@@ -66,7 +70,8 @@ private final class CVDisplayTicker: DisplayTicker {
             } else {
                 timestamp = CACurrentMediaTime()
             }
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak ticker] in
+                guard let ticker, !ticker.isInvalidated else { return }
                 ticker.onFrame(timestamp)
             }
             return kCVReturnSuccess
@@ -75,6 +80,7 @@ private final class CVDisplayTicker: DisplayTicker {
     }
 
     func invalidate() {
+        isInvalidated = true
         if let link {
             CVDisplayLinkStop(link)
         }
@@ -99,6 +105,7 @@ final class DisplayClock: NSObject {
     private var lastIdleTickTimestamp: CFTimeInterval?
     private var phase: Phase = .idle
     private var phaseTickCount: Int = 0
+    private var isRunning = false
 
     private enum Phase {
         case idle       // random individual flips
@@ -130,15 +137,20 @@ final class DisplayClock: NSObject {
     func start(screen: NSScreen? = NSScreen.main) {
         stop()
         runGeneration += 1
+        isRunning = true
         phase = .idle
         phaseTickCount = 0
         lastIdleTickTimestamp = nil
 
         ticker = makeTicker(screen: screen)
+        if ticker == nil {
+            isRunning = false
+        }
     }
 
     func stop() {
         runGeneration += 1
+        isRunning = false
         ticker?.invalidate()
         ticker = nil
         lastIdleTickTimestamp = nil
@@ -166,6 +178,7 @@ final class DisplayClock: NSObject {
     }
 
     private func displayTick(timestamp: CFTimeInterval) {
+        guard isRunning else { return }
         guard let last = lastIdleTickTimestamp else {
             lastIdleTickTimestamp = timestamp
             return

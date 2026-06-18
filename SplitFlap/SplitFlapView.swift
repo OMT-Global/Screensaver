@@ -10,6 +10,9 @@ final class SplitFlapView: ScreenSaverView {
     private var grid: CharacterGrid?
     private var clock: DisplayClock?
     private var rootLayer: CALayer!
+    private var observedWindow: NSWindow?
+    private var windowObservers: [NSObjectProtocol] = []
+    private var isClockRunning = false
 
     // MARK: - Init
 
@@ -41,19 +44,27 @@ final class SplitFlapView: ScreenSaverView {
         clock = DisplayClock(grid: g)
 
         // Do NOT use animateOneFrame() timer — all animation is CAAnimation-driven.
-        animationTimeInterval = 1.0 / 30.0  // satisfies framework requirement; effectively unused
+        animationTimeInterval = 60.0  // keep ScreenSaverView's empty framework timer cold
+    }
+
+    deinit {
+        removeWindowObservers()
+        clock?.stop()
     }
 
     // MARK: - Lifecycle
 
     override func startAnimation() {
         super.startAnimation()
-        clock?.start(screen: window?.screen ?? NSScreen.main)
+        updateClockForVisibility()
+        DispatchQueue.main.async { [weak self] in
+            self?.updateClockForVisibility()
+        }
     }
 
     override func stopAnimation() {
         super.stopAnimation()
-        clock?.stop()
+        stopClock()
     }
 
     // animateOneFrame is called by ScreenSaverView's built-in timer.
@@ -69,8 +80,15 @@ final class SplitFlapView: ScreenSaverView {
         let scale = NSScreen.main?.backingScaleFactor ?? 2.0
         rootLayer.frame = bounds
         grid?.rebuild(bounds: bounds, isPreview: isPreview, scale: scale)
-        if isAnimating {
-            clock?.start(screen: window?.screen ?? NSScreen.main)
+        updateClockForVisibility(restartIfRunning: true)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        observeCurrentWindow()
+        updateClockForVisibility()
+        DispatchQueue.main.async { [weak self] in
+            self?.updateClockForVisibility()
         }
     }
 
@@ -80,4 +98,60 @@ final class SplitFlapView: ScreenSaverView {
 
     override var hasConfigureSheet: Bool { false }
     override var configureSheet: NSWindow? { nil }
+
+    private func observeCurrentWindow() {
+        guard observedWindow !== window else { return }
+        removeWindowObservers()
+        observedWindow = window
+
+        guard let window else { return }
+        let center = NotificationCenter.default
+        let notifications: [NSNotification.Name] = [
+            NSWindow.didChangeOcclusionStateNotification,
+            NSWindow.didMiniaturizeNotification,
+            NSWindow.didDeminiaturizeNotification
+        ]
+
+        windowObservers = notifications.map { name in
+            center.addObserver(
+                forName: name,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updateClockForVisibility()
+            }
+        }
+    }
+
+    private func removeWindowObservers() {
+        let center = NotificationCenter.default
+        windowObservers.forEach { center.removeObserver($0) }
+        windowObservers = []
+        observedWindow = nil
+    }
+
+    private var shouldRunClock: Bool {
+        guard isAnimating, let window else { return false }
+        return window.isVisible
+            && !window.isMiniaturized
+            && window.occlusionState.contains(.visible)
+    }
+
+    private func updateClockForVisibility(restartIfRunning: Bool = false) {
+        guard shouldRunClock else {
+            stopClock()
+            return
+        }
+
+        if restartIfRunning || !isClockRunning {
+            clock?.start(screen: window?.screen ?? NSScreen.main)
+            isClockRunning = true
+        }
+    }
+
+    private func stopClock() {
+        guard isClockRunning else { return }
+        clock?.stop()
+        isClockRunning = false
+    }
 }
