@@ -1,65 +1,87 @@
 import Foundation
 
-// Characters in the order they appear on a mechanical Solari drum.
-// Panels always advance *forward* through this sequence (never backward),
-// just like a physical split-flap display.
-enum SplitFlapCharacter: Int, CaseIterable {
-    case space = 0
-    case A, B, C, D, E, F, G, H, I, J, K, L, M
-    case N, O, P, Q, R, S, T, U, V, W, X, Y, Z
-    case zero, one, two, three, four, five, six, seven, eight, nine
-    case period, comma, hyphen, slash, colon
+// A displayable split-flap cell. Known Solari drum characters retain the
+// mechanical forward-only sequence; arbitrary Unicode grapheme clusters render
+// directly as a one-step flip target.
+struct SplitFlapCharacter: Hashable {
+    let displayString: String
 
-    var displayString: String {
-        switch self {
-        case .space:   return " "
-        case .A: return "A"; case .B: return "B"; case .C: return "C"
-        case .D: return "D"; case .E: return "E"; case .F: return "F"
-        case .G: return "G"; case .H: return "H"; case .I: return "I"
-        case .J: return "J"; case .K: return "K"; case .L: return "L"
-        case .M: return "M"; case .N: return "N"; case .O: return "O"
-        case .P: return "P"; case .Q: return "Q"; case .R: return "R"
-        case .S: return "S"; case .T: return "T"; case .U: return "U"
-        case .V: return "V"; case .W: return "W"; case .X: return "X"
-        case .Y: return "Y"; case .Z: return "Z"
-        case .zero:  return "0"; case .one:   return "1"; case .two:   return "2"
-        case .three: return "3"; case .four:  return "4"; case .five:  return "5"
-        case .six:   return "6"; case .seven: return "7"; case .eight: return "8"
-        case .nine:  return "9"
-        case .period: return "."; case .comma:  return ","
-        case .hyphen: return "-"; case .slash:  return "/"
-        case .colon:  return ":"
-        }
+    init(_ displayString: String) {
+        self.displayString = displayString.isEmpty ? " " : displayString
     }
 
-    static let count: Int = SplitFlapCharacter.allCases.count
-    private static let lookupByDisplayString: [String: SplitFlapCharacter] = {
-        Dictionary(uniqueKeysWithValues: allCases.map { ($0.displayString, $0) })
-    }()
+    static let space = SplitFlapCharacter(" ")
+
+    static let drumCharacters: [SplitFlapCharacter] = [
+        " ",
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+        ".", ",", "-", "/", ":"
+    ].map(SplitFlapCharacter.init)
+
+    static let count: Int = drumCharacters.count
+
+    private static let lookupByDisplayString = Dictionary(
+        uniqueKeysWithValues: drumCharacters.map { ($0.displayString, $0) }
+    )
+
+    private static let drumIndexByDisplayString = Dictionary(
+        uniqueKeysWithValues: drumCharacters.enumerated().map { ($0.element.displayString, $0.offset) }
+    )
+
+    private var drumIndex: Int? {
+        Self.drumIndexByDisplayString[displayString]
+    }
 
     // Advance one step forward from this character.
     var next: SplitFlapCharacter {
-        let nextRaw = (rawValue + 1) % SplitFlapCharacter.count
-        return SplitFlapCharacter(rawValue: nextRaw)!
+        guard let drumIndex else { return self }
+        let nextIndex = (drumIndex + 1) % Self.drumCharacters.count
+        return Self.drumCharacters[nextIndex]
     }
 
     // Number of forward steps needed to reach `target` from `self`.
     func stepsTo(_ target: SplitFlapCharacter) -> Int {
-        if target.rawValue >= rawValue {
-            return target.rawValue - rawValue
+        guard let sourceIndex = drumIndex, let targetIndex = target.drumIndex else {
+            return self == target ? 0 : 1
         }
-        return SplitFlapCharacter.count - rawValue + target.rawValue
+
+        if targetIndex >= sourceIndex {
+            return targetIndex - sourceIndex
+        }
+        return Self.drumCharacters.count - sourceIndex + targetIndex
     }
 
-    // Return a random character (excluding space for more visual interest).
+    func sequence(to target: SplitFlapCharacter) -> [SplitFlapCharacter] {
+        guard let sourceIndex = drumIndex, target.drumIndex != nil else {
+            return self == target ? [self] : [self, target]
+        }
+
+        let steps = stepsTo(target)
+        var sequence: [SplitFlapCharacter] = [self]
+        sequence.reserveCapacity(steps + 1)
+        for offset in 1...steps {
+            sequence.append(Self.drumCharacters[(sourceIndex + offset) % Self.drumCharacters.count])
+        }
+        return sequence
+    }
+
+    // Return a random character from the physical drum alphabet.
     static func random() -> SplitFlapCharacter {
-        let all = SplitFlapCharacter.allCases
-        return all[Int.random(in: 0..<all.count)]
+        drumCharacters[Int.random(in: 0..<drumCharacters.count)]
     }
 
-    // Parse a single character string into a SplitFlapCharacter, or return .space.
+    // Parse one extended grapheme cluster. Known ASCII drum characters normalize
+    // to uppercase; all other Unicode clusters are preserved for rendering.
     static func from(_ string: String) -> SplitFlapCharacter {
-        let ch = string.uppercased()
-        return lookupByDisplayString[ch] ?? .space
+        guard let first = string.first else { return .space }
+        let grapheme = String(first)
+        let normalized = grapheme.uppercased()
+        return lookupByDisplayString[normalized] ?? SplitFlapCharacter(grapheme)
+    }
+
+    static func characters(in text: String) -> [SplitFlapCharacter] {
+        text.map { from(String($0)) }
     }
 }

@@ -100,6 +100,9 @@ final class DisplayClock: NSObject {
 
     private weak var grid: CharacterGrid?
     private let animator = FlipAnimator()
+    private let contentProvider: SplitFlapContentProvider
+    private var configuration: SplitFlapConfiguration
+    private let isPreview: Bool
 
     private var ticker: DisplayTicker?
     private var lastIdleTickTimestamp: CFTimeInterval?
@@ -114,22 +117,23 @@ final class DisplayClock: NSObject {
 
     // Tick interval for the idle phase (seconds between random panel checks)
     private let idleTickInterval: TimeInterval = 0.15
-    // How many ticks before switching to a wave phase
-    private let idleTickDuration: Int = 30
-    // How many ticks the wave phase lasts
-    private let waveTickDuration: Int = 80
-
-    // Fraction of panels that flip on each idle tick
-    private let idleDensity: Double = 0.04
     private let maxIdleFlipStartsPerTick: Int = 12
     private let maxActiveIdleFlips: Int = 48
     private var runGeneration: Int = 0
 
     // MARK: - Init
 
-    init(grid: CharacterGrid) {
+    init(grid: CharacterGrid, configuration: SplitFlapConfiguration, isPreview: Bool) {
         self.grid = grid
+        self.configuration = configuration
+        self.contentProvider = SplitFlapContentProvider(configuration: configuration)
+        self.isPreview = isPreview
         super.init()
+    }
+
+    func update(configuration: SplitFlapConfiguration) {
+        self.configuration = configuration
+        contentProvider.update(configuration: configuration)
     }
 
     // MARK: - Lifecycle
@@ -145,6 +149,12 @@ final class DisplayClock: NSObject {
         ticker = makeTicker(screen: screen)
         if ticker == nil {
             isRunning = false
+        }
+
+        if isPreview, let grid {
+            applyTargets(contentProvider.nextTargets(rows: grid.rows, cols: grid.cols, preview: true), grid: grid)
+        } else if shouldSeedInitialWave, let grid {
+            startWave(grid: grid)
         }
     }
 
@@ -195,7 +205,9 @@ final class DisplayClock: NSObject {
 
         switch phase {
         case .idle:
-            idleTick(grid: grid)
+            if configuration.idleShuffleEnabled {
+                idleTick(grid: grid)
+            }
             if phaseTickCount >= idleTickDuration {
                 phase = .wave
                 phaseTickCount = 0
@@ -221,8 +233,9 @@ final class DisplayClock: NSObject {
         let activeCount = all.reduce(0) { $0 + ($1.isFlipping ? 1 : 0) }
         let activeBudget = maxActiveIdleFlips - activeCount
         guard activeBudget > 0 else { return }
+        guard configuration.idleDensity > 0 else { return }
 
-        let requestedCount = max(1, Int(Double(all.count) * idleDensity))
+        let requestedCount = max(1, Int(Double(all.count) * configuration.idleDensity))
         let flipCount = min(requestedCount, maxIdleFlipStartsPerTick, activeBudget, all.count)
         let generation = runGeneration
 
@@ -259,8 +272,7 @@ final class DisplayClock: NSObject {
     // MARK: - Wave phase
 
     private func startWave(grid: CharacterGrid) {
-        // Choose a random target character for each panel (or fill with a message).
-        let targets = buildWaveTargets(grid: grid)
+        let targets = contentProvider.nextTargets(rows: grid.rows, cols: grid.cols)
         let generation = runGeneration
 
         // Stagger column-by-column by assigning Core Animation begin times in one pass.
@@ -293,16 +305,24 @@ final class DisplayClock: NSObject {
         }
     }
 
-    private func buildWaveTargets(grid: CharacterGrid) -> [[SplitFlapCharacter]] {
-        var targets: [[SplitFlapCharacter]] = []
-        for _ in 0..<grid.rows {
-            var row: [SplitFlapCharacter] = []
-            for _ in 0..<grid.cols {
-                row.append(SplitFlapCharacter.random())
+    private var shouldSeedInitialWave: Bool {
+        configuration.displayMode != .random || !configuration.idleShuffleEnabled
+    }
+
+    private var idleTickDuration: Int {
+        max(1, Int(configuration.waveIntervalSeconds / idleTickInterval) - waveTickDuration)
+    }
+
+    private var waveTickDuration: Int {
+        max(20, idleTickDuration / 2)
+    }
+
+    private func applyTargets(_ targets: [[SplitFlapCharacter]], grid: CharacterGrid) {
+        for row in 0..<min(grid.rows, targets.count) {
+            for col in 0..<min(grid.cols, targets[row].count) {
+                grid.panel(row: row, col: col)?.setCharacter(targets[row][col], animated: false)
             }
-            targets.append(row)
         }
-        return targets
     }
 
     private func isCurrentGeneration(_ generation: Int) -> Bool {
