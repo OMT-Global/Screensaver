@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if command -v xcodebuild >/dev/null 2>&1; then
-  echo "Running SplitFlap fast checks via xcodebuild."
+  echo "Running Flapline fast checks via xcodebuild."
   xcodebuild \
     -project SplitFlap.xcodeproj \
     -scheme SplitFlap \
@@ -11,7 +11,7 @@ if command -v xcodebuild >/dev/null 2>&1; then
     build
 else
   echo "xcodebuild is unavailable on this runner; skipping the macOS build step."
-  echo "SplitFlap must be validated on a macOS runner before release."
+  echo "Flapline must be validated on a macOS runner before release."
 fi
 
 if grep -q 'DispatchQueue\.main\.asyncAfter' SplitFlap/DisplayClock.swift; then

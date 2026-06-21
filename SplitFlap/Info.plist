@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.omt.SplitFlap</string>
+	<string>app.flapline.screensaver</string>
 	<key>CFBundleName</key>
-	<string>SplitFlap</string>
+	<string>Flapline</string>
 	<key>CFBundleExecutable</key>
-	<string>SplitFlap</string>
+	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>NSPrincipalClass</key>
-	<string>SplitFlap.SplitFlapView</string>
+	<string>$(PRODUCT_MODULE_NAME).SplitFlapView</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleVersion</key>

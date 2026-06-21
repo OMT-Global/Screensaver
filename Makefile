@@ -1,4 +1,4 @@
-PRODUCT_NAME  = SplitFlap
+PRODUCT_NAME  = Flapline
 PROJECT       = SplitFlap.xcodeproj
 SCHEME        = SplitFlap
 BUILD_DIR     = build

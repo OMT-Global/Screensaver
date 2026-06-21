@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if ! command -v xcodebuild >/dev/null 2>&1; then
-  echo "xcodebuild is required for SplitFlap release verification." >&2
+  echo "xcodebuild is required for Flapline release verification." >&2
   exit 1
 fi
 

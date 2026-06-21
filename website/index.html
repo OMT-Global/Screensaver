@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flapline - A split-flap screensaver for macOS</title>
+    <meta
+      name="description"
+      content="Flapline is a quiet split-flap screensaver for macOS with custom messages, clock and date modes, Unicode support, themes, and idle-friendly animation."
+    >
+    <meta property="og:title" content="Flapline">
+    <meta property="og:description" content="A split-flap screensaver with somewhere to be.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://flapline.app/">
+    <meta name="theme-color" content="#070707">
+    <link rel="stylesheet" href="styles.css?v=20260621b">
+  </head>
+  <body>
+    <header class="site-header" aria-label="Primary navigation">
+      <a class="brand" href="/" aria-label="Flapline home">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <span>Flapline</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#download">Download</a>
+        <a href="#customize">Customize</a>
+        <a href="https://github.com/OMT-Global/Screensaver">GitHub</a>
+      </nav>
+      <a class="button button-small" href="https://github.com/OMT-Global/Screensaver/releases/latest">
+        Download
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"></path>
+        </svg>
+      </a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-board" aria-label="Split-flap board spelling Flapline">
+          <div class="board-frame" data-board="FLAPLINE"></div>
+        </div>
+        <div class="hero-copy">
+          <h1>A split-flap screensaver with somewhere to be.</h1>
+          <p>
+            Flapline brings the soft shuffle of old departure boards to your Mac,
+            with custom messages, clocks, dates, Unicode, and themes.
+          </p>
+        </div>
+      </section>
+
+      <section class="mode-strip" aria-label="Display modes">
+        <article>
+          <span>Custom messages</span>
+          <div class="mini-board" data-board="STAY CURIOUS"></div>
+          <p>Short phrases, long thoughts, reminders, or whatever belongs on your wall.</p>
+        </article>
+        <article>
+          <span>Clock modes</span>
+          <div class="mini-board" data-board="10:42 PM"></div>
+          <p>12-hour or 24-hour clocks with optional seconds and leading zeros.</p>
+        </article>
+        <article>
+          <span>Date modes</span>
+          <div class="mini-board" data-board="SATURDAY"></div>
+          <p>Dates, days, or both, with a board that feels like it is about to announce a train.</p>
+        </article>
+      </section>
+
+      <section id="customize" class="customize">
+        <div class="feature-list">
+          <h2>Make the board yours.</h2>
+          <article>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M6 5h12M12 5v14M8 19h8"></path>
+            </svg>
+            <div>
+              <h3>Messages and Unicode</h3>
+              <p>Use any text you like, including accents, symbols, and emoji.</p>
+            </div>
+          </article>
+          <article>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M12 3a9 9 0 1 0 0 18h1.5a1.8 1.8 0 0 0 0-3.6H12a1.8 1.8 0 0 1 0-3.6h3a3 3 0 0 0 0-6h-.5"></path>
+              <circle cx="8" cy="9" r="1"></circle>
+              <circle cx="11" cy="7" r="1"></circle>
+              <circle cx="7" cy="13" r="1"></circle>
+            </svg>
+            <div>
+              <h3>Themes</h3>
+              <p>Pick classic amber, terminal green, monochrome, and future color sets.</p>
+            </div>
+          </article>
+          <article>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M4 7h9m4 0h3M4 12h3m4 0h9M4 17h11m4 0h1"></path>
+              <circle cx="15" cy="7" r="2"></circle>
+              <circle cx="9" cy="12" r="2"></circle>
+              <circle cx="17" cy="17" r="2"></circle>
+            </svg>
+            <div>
+              <h3>Layout and behavior</h3>
+              <p>Adjust rows, wave timing, idle shuffle, and how messages rotate.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="settings-window" aria-label="Flapline settings preview">
+          <div class="window-bar">
+            <span></span><span></span><span></span>
+            <strong>Flapline</strong>
+          </div>
+          <div class="settings-body">
+            <aside>
+              <button class="selected">Messages</button>
+              <button>Clock &amp; Date</button>
+              <button>Appearance</button>
+              <button>Behavior</button>
+            </aside>
+            <div class="settings-panel">
+              <label for="preview-messages">Messages</label>
+              <textarea id="preview-messages" readonly>STAY CURIOUS
+GOOD COFFEE
+KEEP GOING</textarea>
+              <div class="field-row">
+                <span>Rotation</span>
+                <strong>Sequential</strong>
+              </div>
+              <div class="field-row">
+                <span>Change every</span>
+                <strong>10 seconds</strong>
+              </div>
+              <label class="checkbox"><input type="checkbox" checked disabled> Shuffle characters</label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="quiet">
+        <h2>Built for quiet Macs.</h2>
+        <article>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M8 8h8v8H8z"></path>
+          </svg>
+          <h3>Core Animation</h3>
+          <p>Smooth split-flap motion is handed to the render server.</p>
+        </article>
+        <article>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M20 4C10 4 5 9 5 19c8 0 14-6 15-15Z"></path>
+            <path d="M5 19c4-6 8-9 15-15"></path>
+          </svg>
+          <h3>Idle friendly</h3>
+          <p>Sleeps when hidden, with near-zero app CPU when your Mac is at rest.</p>
+        </article>
+        <article>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M7 11V8a5 5 0 0 1 10 0v3"></path>
+            <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+          </svg>
+          <h3>Local and private</h3>
+          <p>Everything stays on your Mac. No account and no network service required.</p>
+        </article>
+      </section>
+
+      <section id="download" class="download-panel">
+        <div>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"></path>
+          </svg>
+        </div>
+        <div>
+          <h2>Ready when you are.</h2>
+          <p>Download Flapline and give your screen somewhere to be.</p>
+        </div>
+        <a class="button button-large" href="https://github.com/OMT-Global/Screensaver/releases/latest">
+          Download Flapline
+          <span>macOS 12.0+</span>
+        </a>
+      </section>
+    </main>
+
+    <footer>
+      <span>Flapline</span>
+      <a href="https://github.com/OMT-Global/Screensaver">GitHub</a>
+      <a href="https://github.com/OMT-Global/Screensaver/releases/latest">Releases</a>
+    </footer>
+
+    <script src="app.js?v=20260621b"></script>
+  </body>
+</html>

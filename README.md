@@ -1,95 +1,124 @@
-# SplitFlap
+# Flapline
 
-A macOS screensaver that simulates a **split-flap mechanical display** — the satisfying flip-card boards once found in airports and train stations around the world.
+**A split-flap screensaver with somewhere to be.**
 
-Built entirely in Swift using the native `ScreenSaver` framework and Core Animation.
+Flapline brings the soft shuffle of old airport and train-station departure
+boards to your Mac. It flips, drifts, clicks through messages, shows the time
+or date, and then gets out of the way when the screen saver is not running.
 
-![Language](https://img.shields.io/badge/Swift-5-orange?logo=swift) ![Platform](https://img.shields.io/badge/macOS-screensaver-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+Built in Swift with macOS `ScreenSaver`, Core Animation, and a small affection
+for mechanical things that do one job beautifully.
 
----
+[![Swift](https://img.shields.io/badge/Swift-5-orange?logo=swift)](https://www.swift.org/)
+![Platform](https://img.shields.io/badge/macOS-screensaver-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-## How it works
+## What It Does
 
-The display cycles through two alternating phases:
+- **Custom messages**: add one phrase per line and let the board rotate through them.
+- **Clock and date modes**: run it like a quiet desk clock or a calendar board.
+- **Unicode support**: accents, symbols, and emoji can ride along with the classic flap alphabet.
+- **Themes**: classic amber, terminal green, monochrome, and room for more.
+- **Idle-friendly animation**: Core Animation drives the flip work, and the display clock stops when the saver is not visible.
+- **Private by default**: configuration stays on your Mac. No account, no network service, no telemetry.
 
-- **Idle shuffle** — individual panels drift to random characters at a natural, staggered pace
-- **Wave update** — a left-to-right wave sweeps across all panels in a coordinated flip
+## Download
 
-Each character flip is animated mechanically: the top flap falls, then the new bottom flap rises, matching the physics of a real split-flap unit.
+Public releases will live on GitHub Releases and at **https://flapline.app**.
 
----
-
-## Requirements
-
-- macOS 12 or later
-- Xcode 14+
-
----
-
-## Build & Install
-
-**Using Make (recommended):**
+Until the first signed release is published, build from source:
 
 ```bash
-# Build and install to ~/Library/Screen Savers/
 make install
-
-# Build only (Release)
-make build
-
-# Build Debug
-make debug
-
-# Uninstall
-make uninstall
 ```
 
-**Using Xcode:**
+That builds a Release copy and installs it into:
 
-1. Open `SplitFlap.xcodeproj`
-2. Select the `SplitFlap` scheme
-3. Build (⌘B)
-4. Copy `SplitFlap.saver` from the build products to `~/Library/Screen Savers/`
-
----
-
-## Activate
-
-1. Open **System Settings → Screen Saver**
-2. Select **SplitFlap** from the list
+```text
+~/Library/Screen Savers/Flapline.saver
+```
 
 ## Configure
 
-Open the SplitFlap options sheet from System Settings to choose what the board
-displays:
+Open **System Settings -> Screen Saver**, choose **Flapline**, then open
+**Options**.
 
-- **Display**: random board, custom messages, clock, or date
-- **Messages**: one message per line, including Unicode text and emoji
-- **Message order**: sequential or random
-- **Wave interval**: how often the board updates
-- **Idle shuffle**: whether panels drift between coordinated waves
-- **Board rows**: approximate display density
-- **Theme**: classic amber, terminal green, or monochrome
+The options sheet lets you tune:
+
+- Display mode: random board, custom messages, clock, or date
+- Messages: one message per line
+- Message order: sequential or random
+- Wave interval: how often the board updates
+- Idle shuffle: whether panels drift between coordinated waves
+- Board rows: approximate display density
+- Theme: classic amber, terminal green, or monochrome
 
 The original split-flap alphabet still animates through a mechanical forward
 drum sequence. Other Unicode grapheme clusters render directly as valid panel
 targets.
 
----
+## Build
 
-## Project structure
+Requirements:
 
-| File | Purpose |
+- macOS 12 or later
+- Xcode 14 or later
+
+Make targets:
+
+```bash
+make build         # Release build
+make debug         # Debug build
+make install       # Build and install to ~/Library/Screen Savers/
+make install-debug # Debug install
+make uninstall     # Remove the installed saver
+make preview       # Open the Screen Saver settings pane
+```
+
+Xcode:
+
+1. Open `SplitFlap.xcodeproj`.
+2. Select the `SplitFlap` scheme.
+3. Build.
+4. Copy `Flapline.saver` from the build products into `~/Library/Screen Savers/`.
+
+## Website
+
+The public site is intentionally small and static:
+
+```text
+website/
+```
+
+It is configured for the single canonical domain:
+
+```text
+flapline.app
+```
+
+No `www` site is planned.
+
+## Release Notes For Humans
+
+For public distribution, Flapline should be Developer ID signed and notarized
+before release. Unsigned local builds are fine for development, but public
+downloads should avoid scary Gatekeeper warnings.
+
+See [docs/release/public-launch.md](docs/release/public-launch.md) for the
+domain, signing, website, and release checklist.
+
+## Project Structure
+
+| Path | Purpose |
 |---|---|
-| `SplitFlapView.swift` | Principal screensaver class, registered with macOS |
-| `CharacterGrid.swift` | Manages the grid of individual panel cells |
-| `CharacterSet.swift` | Defines the character alphabet and ordering |
-| `SplitFlapPanel.swift` | Renders a single split-flap cell with CALayers |
-| `FlipAnimator.swift` | Drives the mechanical flip animation via `CABasicAnimation` |
-| `DisplayClock.swift` | Orchestrates idle and wave phases with a dispatch timer |
+| `SplitFlap/` | Screensaver source code |
+| `SplitFlap/Info.plist` | Bundle metadata and principal class |
+| `SplitFlap.xcodeproj` | Xcode project |
+| `website/` | Static public website for `flapline.app` |
+| `scripts/ci/` | Fast, extended, and release validation scripts |
+| `docs/release/` | Public launch and release guidance |
 
----
+## Part Of OMT Global
 
-## Part of [OMT Global](https://github.com/omt-global)
-
-A father-and-son open-source project.
+Flapline is a small OMT Global project: a father-and-son open-source build with
+an unnecessary amount of care put into tiny moving panels.
