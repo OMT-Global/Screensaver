@@ -13,6 +13,8 @@
 		E422C254DE334797B873E101 /* FlipAnimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F02920C52D74E98859D8ACB /* FlipAnimator.swift */; };
 		D46314B140D444D8BF002D50 /* DisplayClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFF542687ECF4850AEE45CBE /* DisplayClock.swift */; };
 		EFE3F48231454D52A4EE2C48 /* CharacterSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30537C46A0D417DA9A7C58E /* CharacterSet.swift */; };
+		9B6F9B6C67454D6DA1F7A501 /* SplitFlapConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6F9B6B67454D6DA1F7A501 /* SplitFlapConfiguration.swift */; };
+		9B6F9B6E67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6F9B6D67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift */; };
 		379902B659FA4434815BF2AC /* ScreenSaver.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */; };
 		E20F4AC790D1441481FB41D6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */; };
 /* End PBXBuildFile section */
@@ -24,6 +26,8 @@
 		4F02920C52D74E98859D8ACB /* FlipAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipAnimator.swift; sourceTree = "<group>"; };
 		FFF542687ECF4850AEE45CBE /* DisplayClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayClock.swift; sourceTree = "<group>"; };
 		D30537C46A0D417DA9A7C58E /* CharacterSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterSet.swift; sourceTree = "<group>"; };
+		9B6F9B6B67454D6DA1F7A501 /* SplitFlapConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitFlapConfiguration.swift; sourceTree = "<group>"; };
+		9B6F9B6D67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitFlapConfigureSheetController.swift; sourceTree = "<group>"; };
 		6DF5732666934A6D8D48E527 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenSaver.framework; path = System/Library/Frameworks/ScreenSaver.framework; sourceTree = SDKROOT; };
 		143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
@@ -61,6 +65,8 @@
 				4F02920C52D74E98859D8ACB /* FlipAnimator.swift */,
 				FFF542687ECF4850AEE45CBE /* DisplayClock.swift */,
 				D30537C46A0D417DA9A7C58E /* CharacterSet.swift */,
+				9B6F9B6B67454D6DA1F7A501 /* SplitFlapConfiguration.swift */,
+				9B6F9B6D67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift */,
 				6DF5732666934A6D8D48E527 /* Info.plist */,
 			);
 			path = SplitFlap;
@@ -152,6 +158,8 @@
 				E422C254DE334797B873E101 /* FlipAnimator.swift in Sources */,
 				D46314B140D444D8BF002D50 /* DisplayClock.swift in Sources */,
 				EFE3F48231454D52A4EE2C48 /* CharacterSet.swift in Sources */,
+				9B6F9B6C67454D6DA1F7A501 /* SplitFlapConfiguration.swift in Sources */,
+				9B6F9B6E67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

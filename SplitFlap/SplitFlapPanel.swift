@@ -4,14 +4,6 @@ import IOSurface
 import CoreVideo
 import Darwin
 
-// Colors matching a classic Solari board.
-enum BoardColors {
-    static let panelBackground = CGColor(red: 0.06, green: 0.06, blue: 0.07, alpha: 1.0)
-    static let character       = CGColor(red: 0.98, green: 0.82, blue: 0.25, alpha: 1.0)
-    static let divider         = CGColor(red: 0.01, green: 0.01, blue: 0.02, alpha: 1.0)
-    static let screenBg        = CGColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1.0)
-}
-
 private final class GlyphImageCache {
     static let shared = GlyphImageCache()
 
@@ -22,13 +14,14 @@ private final class GlyphImageCache {
         init(surface: IOSurface) { self.surface = surface }
     }
 
-    private let cache = NSCache<NSNumber, GlyphSurface>()
+    private let cache = NSCache<NSString, GlyphSurface>()
 
     func contents(
         for character: SplitFlapCharacter,
         panelSize: CGSize,
         scale: CGFloat,
-        half: Half
+        half: Half,
+        palette: SplitFlapPalette
     ) -> Any? {
         let panelW = panelSize.width
         let panelH = panelSize.height
@@ -36,14 +29,7 @@ private final class GlyphImageCache {
 
         let pixelWidth = max(1, Int((panelW * scale).rounded(.up)))
         let pixelHalfHeight = max(1, Int((halfH * scale).rounded(.up)))
-        // Pack the cache identity into a single integer so the hot glyph lookup
-        // (called for every keyframe of every flip) allocates nothing — no
-        // per-call interpolated string. Field widths comfortably fit even an
-        // 8K display: half-height/width stay well under 2^14 pixels.
-        let halfBit = (half == .top) ? 0 : 1
-        let key = NSNumber(
-            value: (pixelWidth << 21) | (pixelHalfHeight << 7) | (character.rawValue << 1) | halfBit
-        )
+        let key = "\(pixelWidth)x\(pixelHalfHeight):\(half.rawValue):\(palette.identifier):\(character.displayString)" as NSString
 
         if let cached = cache.object(forKey: key) {
             return cached.surface
@@ -93,24 +79,26 @@ private final class GlyphImageCache {
             context.translateBy(x: 0, y: -halfH)
         }
 
-        let fontSize = panelH * 0.72
-        let font = NSFont(name: "SFMono-Regular", size: fontSize)
-            ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
 
-        let color = NSColor(cgColor: BoardColors.character) ?? .systemYellow
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: color,
-            .paragraphStyle: paragraph
-        ]
+        let string = character.displayString as NSString
+        let color = NSColor(cgColor: palette.character) ?? .systemYellow
+        let maxTextWidth = panelW * 0.92
+        let maxTextHeight = panelH * 0.86
+        var fontSize = max(8, panelH * 0.72)
+        var attributes = textAttributes(fontSize: fontSize, color: color, paragraph: paragraph)
+        var textSize = string.size(withAttributes: attributes)
+
+        while fontSize > 7 && (textSize.width > maxTextWidth || textSize.height > maxTextHeight) {
+            fontSize -= 1
+            attributes = textAttributes(fontSize: fontSize, color: color, paragraph: paragraph)
+            textSize = string.size(withAttributes: attributes)
+        }
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
 
-        let string = character.displayString as NSString
-        let textSize = string.size(withAttributes: attributes)
         let drawRect = CGRect(
             x: 0,
             y: floor((panelH - textSize.height) / 2),
@@ -123,6 +111,19 @@ private final class GlyphImageCache {
         let glyphSurface = GlyphSurface(surface: surface)
         cache.setObject(glyphSurface, forKey: key)
         return surface
+    }
+
+    private func textAttributes(
+        fontSize: CGFloat,
+        color: NSColor,
+        paragraph: NSParagraphStyle
+    ) -> [NSAttributedString.Key: Any] {
+        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        return [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: paragraph
+        ]
     }
 }
 
@@ -184,14 +185,16 @@ final class SplitFlapPanel {
     private var h: CGFloat = 0
     private var mid: CGFloat = 0
     private var contentsScale: CGFloat = 1
+    private let palette: SplitFlapPalette
 
     // MARK: - Setup
 
-    init(size: CGSize, scale: CGFloat) {
+    init(size: CGSize, scale: CGFloat, palette: SplitFlapPalette) {
         w = size.width
         h = size.height
         mid = size.height / 2
         contentsScale = scale
+        self.palette = palette
         buildLayerTree()
         setCharacter(.space, animated: false)
     }
@@ -199,7 +202,7 @@ final class SplitFlapPanel {
     private func buildLayerTree() {
         panelLayer.bounds = CGRect(x: 0, y: 0, width: w, height: h)
         panelLayer.anchorPoint = CGPoint(x: 0, y: 0)
-        panelLayer.backgroundColor = BoardColors.panelBackground
+        panelLayer.backgroundColor = palette.panelBackground
         panelLayer.cornerRadius = 1
         panelLayer.masksToBounds = true
 
@@ -216,7 +219,7 @@ final class SplitFlapPanel {
         bottomFlapContainer.isDoubleSided = false
 
         dividerLayer.frame = CGRect(x: 0, y: mid - 0.5, width: w, height: 1)
-        dividerLayer.backgroundColor = BoardColors.divider
+        dividerLayer.backgroundColor = palette.divider
 
         panelLayer.addSublayer(staticBottomLayer)
         panelLayer.addSublayer(staticTopLayer)
@@ -331,14 +334,9 @@ final class SplitFlapPanel {
         guard steps > 0 else { completion?(); return }
         guard !isFlipping else { completion?(); return }
 
-        // Drum sequence: seq[0] == current, seq[steps] == target.
-        var seq: [SplitFlapCharacter] = [currentCharacter]
-        seq.reserveCapacity(steps + 1)
-        var ch = currentCharacter
-        for _ in 0..<steps {
-            ch = ch.next
-            seq.append(ch)
-        }
+        // Drum characters keep their mechanical forward sequence. Arbitrary
+        // Unicode graphemes are valid targets and resolve as a direct flip.
+        let seq = currentCharacter.sequence(to: target)
 
         // Pre-resolve every glyph half the sequence will show. If any surface
         // is unavailable, fall back to a plain snap so the board still reaches
@@ -468,7 +466,8 @@ final class SplitFlapPanel {
             for: character,
             panelSize: CGSize(width: w, height: h),
             scale: contentsScale,
-            half: half
+            half: half,
+            palette: palette
         )
     }
 
@@ -513,7 +512,8 @@ final class SplitFlapPanel {
             for: character,
             panelSize: CGSize(width: w, height: h),
             scale: layer.contentsScale,
-            half: half
+            half: half,
+            palette: palette
         )
     }
 

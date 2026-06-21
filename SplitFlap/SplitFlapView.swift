@@ -13,6 +13,9 @@ final class SplitFlapView: ScreenSaverView {
     private var observedWindow: NSWindow?
     private var windowObservers: [NSObjectProtocol] = []
     private var isClockRunning = false
+    private var isPreviewInstance = false
+    private var configuration = SplitFlapConfigurationStore.load()
+    private var configureSheetController: SplitFlapConfigureSheetController?
 
     // MARK: - Init
 
@@ -27,21 +30,29 @@ final class SplitFlapView: ScreenSaverView {
     }
 
     private func setup(isPreview: Bool) {
+        isPreviewInstance = isPreview
+        configuration = SplitFlapConfigurationStore.load()
+
         // CALayer-backed view is required for all CAAnimation to work.
         wantsLayer = true
 
         rootLayer = CALayer()
         rootLayer.frame = bounds
-        rootLayer.backgroundColor = BoardColors.screenBg
+        rootLayer.backgroundColor = configuration.theme.palette.screenBg
         layer = rootLayer
 
         let scale = NSScreen.main?.backingScaleFactor ?? 2.0
 
-        let g = CharacterGrid(bounds: bounds, isPreview: isPreview, scale: scale)
+        let g = CharacterGrid(
+            bounds: bounds,
+            isPreview: isPreview,
+            scale: scale,
+            configuration: configuration
+        )
         rootLayer.addSublayer(g.containerLayer)
         grid = g
 
-        clock = DisplayClock(grid: g)
+        clock = DisplayClock(grid: g, configuration: configuration, isPreview: isPreview)
 
         // Do NOT use animateOneFrame() timer — all animation is CAAnimation-driven.
         animationTimeInterval = 60.0  // keep ScreenSaverView's empty framework timer cold
@@ -76,10 +87,14 @@ final class SplitFlapView: ScreenSaverView {
 
     override func resize(withOldSuperviewSize oldSize: NSSize) {
         super.resize(withOldSuperviewSize: oldSize)
-        let isPreview = self.bounds.width < 400
         let scale = NSScreen.main?.backingScaleFactor ?? 2.0
         rootLayer.frame = bounds
-        grid?.rebuild(bounds: bounds, isPreview: isPreview, scale: scale)
+        grid?.rebuild(
+            bounds: bounds,
+            isPreview: isPreviewInstance,
+            scale: scale,
+            configuration: configuration
+        )
         updateClockForVisibility(restartIfRunning: true)
     }
 
@@ -96,8 +111,30 @@ final class SplitFlapView: ScreenSaverView {
 
     override var isOpaque: Bool { true }
 
-    override var hasConfigureSheet: Bool { false }
-    override var configureSheet: NSWindow? { nil }
+    override var hasConfigureSheet: Bool { true }
+    override var configureSheet: NSWindow? {
+        let controller = SplitFlapConfigureSheetController(configuration: configuration) { [weak self] updated in
+            self?.applyConfiguration(updated)
+        }
+        configureSheetController = controller
+        return controller.window
+    }
+
+    private func applyConfiguration(_ updated: SplitFlapConfiguration) {
+        configuration = updated
+        SplitFlapConfigurationStore.save(updated)
+        rootLayer.backgroundColor = updated.theme.palette.screenBg
+
+        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+        grid?.rebuild(
+            bounds: bounds,
+            isPreview: isPreviewInstance,
+            scale: scale,
+            configuration: updated
+        )
+        clock?.update(configuration: updated)
+        updateClockForVisibility(restartIfRunning: true)
+    }
 
     private func observeCurrentWindow() {
         guard observedWindow !== window else { return }

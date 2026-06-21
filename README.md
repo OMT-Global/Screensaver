@@ -58,6 +58,23 @@ make uninstall
 1. Open **System Settings → Screen Saver**
 2. Select **SplitFlap** from the list
 
+## Configure
+
+Open the SplitFlap options sheet from System Settings to choose what the board
+displays:
+
+- **Display**: random board, custom messages, clock, or date
+- **Messages**: one message per line, including Unicode text and emoji
+- **Message order**: sequential or random
+- **Wave interval**: how often the board updates
+- **Idle shuffle**: whether panels drift between coordinated waves
+- **Board rows**: approximate display density
+- **Theme**: classic amber, terminal green, or monochrome
+
+The original split-flap alphabet still animates through a mechanical forward
+drum sequence. Other Unicode grapheme clusters render directly as valid panel
+targets.
+
 ---
 
 ## Project structure
@@ -76,4 +93,3 @@ make uninstall
 ## Part of [OMT Global](https://github.com/omt-global)
 
 A father-and-son open-source project.
-

@@ -10,9 +10,13 @@ final class CharacterGrid {
         let cols: Int
         let originX: CGFloat
         let originY: CGFloat
+        let paletteIdentifier: String
 
         func canReusePanelFrames(from previous: LayoutMetrics) -> Bool {
-            rows == previous.rows && cols == previous.cols && panelSize == previous.panelSize
+            rows == previous.rows
+                && cols == previous.cols
+                && panelSize == previous.panelSize
+                && paletteIdentifier == previous.paletteIdentifier
         }
     }
 
@@ -27,10 +31,12 @@ final class CharacterGrid {
     private var panelSize: CGSize = .zero
     private let gap: CGFloat = 2
     private var lastLayoutMetrics: LayoutMetrics?
+    private var configuration: SplitFlapConfiguration
 
     // MARK: - Init
 
-    init(bounds: CGRect, isPreview: Bool, scale: CGFloat) {
+    init(bounds: CGRect, isPreview: Bool, scale: CGFloat, configuration: SplitFlapConfiguration) {
+        self.configuration = configuration
         layout(bounds: bounds, isPreview: isPreview, scale: scale)
     }
 
@@ -38,7 +44,7 @@ final class CharacterGrid {
 
     private func computePanelSize(for bounds: CGRect, isPreview: Bool) -> CGSize {
         let aspectRatio: CGFloat = 0.62   // width / height (real Solari: slightly taller than wide)
-        let targetRows: CGFloat = isPreview ? 5 : 15
+        let targetRows = CGFloat(configuration.rowCount(isPreview: isPreview))
 
         let totalGapH = gap * (targetRows + 1)
         let h = floor((bounds.height - totalGapH) / targetRows)
@@ -51,6 +57,7 @@ final class CharacterGrid {
         let dimensionsChanged = rows != metrics.rows
             || cols != metrics.cols
             || !hasPanelGrid(rows: metrics.rows, cols: metrics.cols)
+            || lastLayoutMetrics?.paletteIdentifier != metrics.paletteIdentifier
         let framesOnly = lastLayoutMetrics.map { metrics.canReusePanelFrames(from: $0) } ?? false
 
         panelSize = metrics.panelSize
@@ -60,7 +67,7 @@ final class CharacterGrid {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         containerLayer.frame = metrics.bounds
-        containerLayer.backgroundColor = BoardColors.screenBg
+        containerLayer.backgroundColor = configuration.theme.palette.screenBg
 
         if dimensionsChanged {
             rebuildPanels(using: metrics, scale: scale)
@@ -86,7 +93,11 @@ final class CharacterGrid {
         for r in 0..<rows {
             var row: [SplitFlapPanel] = []
             for c in 0..<cols {
-                let panel = SplitFlapPanel(size: metrics.panelSize, scale: scale)
+                let panel = SplitFlapPanel(
+                    size: metrics.panelSize,
+                    scale: scale,
+                    palette: configuration.theme.palette
+                )
                 panel.panelLayer.frame = panelFrame(row: r, col: c, metrics: metrics)
                 containerLayer.addSublayer(panel.panelLayer)
                 row.append(panel)
@@ -129,7 +140,8 @@ final class CharacterGrid {
 
     // MARK: - Resize
 
-    func rebuild(bounds: CGRect, isPreview: Bool, scale: CGFloat) {
+    func rebuild(bounds: CGRect, isPreview: Bool, scale: CGFloat, configuration: SplitFlapConfiguration) {
+        self.configuration = configuration
         layout(bounds: bounds, isPreview: isPreview, scale: scale)
     }
 
@@ -151,7 +163,8 @@ final class CharacterGrid {
             rows: rows,
             cols: cols,
             originX: originX,
-            originY: originY
+            originY: originY,
+            paletteIdentifier: configuration.theme.palette.identifier
         )
     }
 
