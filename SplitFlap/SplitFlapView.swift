@@ -7,6 +7,8 @@ import AppKit
 @objc(SplitFlapView)
 final class SplitFlapView: ScreenSaverView {
 
+    private static var activeConfigureSheetController: SplitFlapConfigureSheetController?
+
     private var grid: CharacterGrid?
     private var clock: DisplayClock?
     private var rootLayer: CALayer!
@@ -53,6 +55,7 @@ final class SplitFlapView: ScreenSaverView {
         grid = g
 
         clock = DisplayClock(grid: g, configuration: configuration, isPreview: isPreview)
+        clock?.showImmediateFrame()
 
         // Do NOT use animateOneFrame() timer — all animation is CAAnimation-driven.
         animationTimeInterval = 60.0  // keep ScreenSaverView's empty framework timer cold
@@ -95,6 +98,7 @@ final class SplitFlapView: ScreenSaverView {
             scale: scale,
             configuration: configuration
         )
+        clock?.showImmediateFrame()
         updateClockForVisibility(restartIfRunning: true)
     }
 
@@ -113,10 +117,22 @@ final class SplitFlapView: ScreenSaverView {
 
     override var hasConfigureSheet: Bool { true }
     override var configureSheet: NSWindow? {
+        if let controller = Self.activeConfigureSheetController {
+            return controller.window
+        }
+
         let controller = SplitFlapConfigureSheetController(configuration: configuration) { [weak self] updated in
-            self?.applyConfiguration(updated)
+            if let self {
+                self.applyConfiguration(updated)
+            } else {
+                SplitFlapConfigurationStore.save(updated)
+            }
+        }
+        controller.onClose = {
+            Self.activeConfigureSheetController = nil
         }
         configureSheetController = controller
+        Self.activeConfigureSheetController = controller
         return controller.window
     }
 
@@ -133,6 +149,7 @@ final class SplitFlapView: ScreenSaverView {
             configuration: updated
         )
         clock?.update(configuration: updated)
+        clock?.showImmediateFrame()
         updateClockForVisibility(restartIfRunning: true)
     }
 

@@ -1,10 +1,11 @@
 import AppKit
 
-final class SplitFlapConfigureSheetController: NSObject {
+final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
     private var configuration: SplitFlapConfiguration
     private let onSave: (SplitFlapConfiguration) -> Void
 
     let window: NSWindow
+    var onClose: (() -> Void)?
 
     private let modePopup = NSPopUpButton()
     private let messageTextView = NSTextView()
@@ -35,6 +36,7 @@ final class SplitFlapConfigureSheetController: NSObject {
     private func buildWindow() {
         window.title = "SplitFlap Options"
         window.isReleasedWhenClosed = false
+        window.delegate = self
 
         let contentView = NSView()
         contentView.translatesAutoresizingMaskIntoConstraints = false
@@ -183,6 +185,11 @@ final class SplitFlapConfigureSheetController: NSObject {
             sheetParent.endSheet(window)
         }
         window.close()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose?()
+        onClose = nil
     }
 }
 

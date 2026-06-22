@@ -137,6 +137,14 @@ final class DisplayClock: NSObject {
         contentProvider.update(configuration: configuration)
     }
 
+    func showImmediateFrame() {
+        guard let grid else { return }
+        applyTargets(
+            contentProvider.immediateTargets(rows: grid.rows, cols: grid.cols, preview: isPreview),
+            grid: grid
+        )
+    }
+
     // MARK: - Lifecycle
 
     func start(screen: NSScreen? = NSScreen.main) {
@@ -153,11 +161,7 @@ final class DisplayClock: NSObject {
             isRunning = false
         }
 
-        if isPreview, let grid {
-            applyTargets(contentProvider.nextTargets(rows: grid.rows, cols: grid.cols, preview: true), grid: grid)
-        } else if shouldSeedInitialWave, let grid {
-            startWave(grid: grid)
-        }
+        showImmediateFrame()
     }
 
     func stop() {
@@ -322,10 +326,6 @@ final class DisplayClock: NSObject {
 
     private func clockTick(grid: CharacterGrid) {
         startWave(grid: grid)
-    }
-
-    private var shouldSeedInitialWave: Bool {
-        configuration.displayMode != .random || !configuration.idleShuffleEnabled
     }
 
     private var cycleTickDuration: Int {
