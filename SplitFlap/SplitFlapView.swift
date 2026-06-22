@@ -3,7 +3,7 @@ import QuartzCore
 import AppKit
 
 // The principal class loaded by macOS's screensaver engine.
-// Registered via NSPrincipalClass = "SplitFlap.SplitFlapView" in Info.plist.
+// Registered via NSPrincipalClass in Info.plist.
 @objc(SplitFlapView)
 final class SplitFlapView: ScreenSaverView {
 
@@ -169,6 +169,9 @@ final class SplitFlapView: ScreenSaverView {
 
     private var shouldRunClock: Bool {
         guard isAnimating, let window else { return false }
+        if isPreviewInstance {
+            return window.isVisible && !window.isMiniaturized
+        }
         return window.isVisible
             && !window.isMiniaturized
             && window.occlusionState.contains(.visible)
