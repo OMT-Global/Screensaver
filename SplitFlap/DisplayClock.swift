@@ -140,7 +140,7 @@ final class DisplayClock: NSObject {
     func showImmediateFrame() {
         guard let grid else { return }
         applyTargets(
-            contentProvider.nextTargets(rows: grid.rows, cols: grid.cols, preview: isPreview),
+            contentProvider.immediateTargets(rows: grid.rows, cols: grid.cols, preview: isPreview),
             grid: grid
         )
     }

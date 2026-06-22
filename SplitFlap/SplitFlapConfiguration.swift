@@ -184,6 +184,19 @@ final class SplitFlapContentProvider {
     }
 
     func nextTargets(rows: Int, cols: Int, preview: Bool = false) -> [[SplitFlapCharacter]] {
+        targets(rows: rows, cols: cols, preview: preview, advanceMessages: true)
+    }
+
+    func immediateTargets(rows: Int, cols: Int, preview: Bool = false) -> [[SplitFlapCharacter]] {
+        targets(rows: rows, cols: cols, preview: preview, advanceMessages: false)
+    }
+
+    private func targets(
+        rows: Int,
+        cols: Int,
+        preview: Bool,
+        advanceMessages: Bool
+    ) -> [[SplitFlapCharacter]] {
         switch configuration.displayMode {
         case .random:
             if preview {
@@ -191,7 +204,7 @@ final class SplitFlapContentProvider {
             }
             return randomTargets(rows: rows, cols: cols)
         case .messages:
-            return textTargets([nextMessage()], rows: rows, cols: cols)
+            return textTargets([message(advance: advanceMessages)], rows: rows, cols: cols)
         case .clock:
             return textTargets([Self.clockFormatter.string(from: Date())], rows: rows, cols: cols)
         case .date:
@@ -199,12 +212,14 @@ final class SplitFlapContentProvider {
         }
     }
 
-    private func nextMessage() -> String {
+    private func message(advance: Bool) -> String {
         let messages = configuration.messages
         switch configuration.messageOrder {
         case .sequential:
             let message = messages[messageIndex % messages.count]
-            messageIndex = (messageIndex + 1) % messages.count
+            if advance {
+                messageIndex = (messageIndex + 1) % messages.count
+            }
             return message
         case .random:
             return messages.randomElement() ?? "SplitFlap"
