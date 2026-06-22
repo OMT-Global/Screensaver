@@ -83,7 +83,7 @@ enum SplitFlapTheme: String, CaseIterable {
 
 struct SplitFlapConfiguration {
     var displayMode: SplitFlapDisplayMode = .messages
-    var messageText: String = "SplitFlap\nUnicode OK\nHello World"
+    var messageText: String = "Flapline\nUnicode OK\nHello World"
     var messageOrder: SplitFlapMessageOrder = .sequential
     var waveIntervalSeconds: TimeInterval = 8
     var idleShuffleEnabled: Bool = true
@@ -96,7 +96,7 @@ struct SplitFlapConfiguration {
             .split(whereSeparator: \.isNewline)
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        return lines.isEmpty ? ["SplitFlap"] : lines
+        return lines.isEmpty ? ["Flapline"] : lines
     }
 
     func rowCount(isPreview: Bool) -> Int {
@@ -108,7 +108,7 @@ struct SplitFlapConfiguration {
 }
 
 enum SplitFlapConfigurationStore {
-    private static let moduleName = "com.omt.SplitFlap"
+    private static let moduleName = "app.flapline.screensaver"
 
     private enum Key {
         static let displayMode = "displayMode"
@@ -200,7 +200,7 @@ final class SplitFlapContentProvider {
         switch configuration.displayMode {
         case .random:
             if preview {
-                return textTargets(["SplitFlap"], rows: rows, cols: cols)
+                return textTargets(["Flapline"], rows: rows, cols: cols)
             }
             return randomTargets(rows: rows, cols: cols)
         case .messages:
@@ -222,7 +222,7 @@ final class SplitFlapContentProvider {
             }
             return message
         case .random:
-            return messages.randomElement() ?? "SplitFlap"
+            return messages.randomElement() ?? "Flapline"
         }
     }
 

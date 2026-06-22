@@ -34,7 +34,7 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
     }
 
     private func buildWindow() {
-        window.title = "SplitFlap Options"
+        window.title = "Flapline Options"
         window.isReleasedWhenClosed = false
         window.delegate = self
 
