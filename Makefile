@@ -29,12 +29,14 @@ debug:
 
 install: build
 	mkdir -p $(INSTALL_DIR)
+	rm -rf $(INSTALL_DIR)/$(PRODUCT_NAME).saver
 	cp -R "$(SAVER_RELEASE)" $(INSTALL_DIR)/
 	@echo "Installed to $(INSTALL_DIR)/$(PRODUCT_NAME).saver"
 	-killall ScreenSaverEngine 2>/dev/null; true
 
 install-debug: debug
 	mkdir -p $(INSTALL_DIR)
+	rm -rf $(INSTALL_DIR)/$(PRODUCT_NAME).saver
 	cp -R "$(SAVER_DEBUG)" $(INSTALL_DIR)/
 	@echo "Installed debug build to $(INSTALL_DIR)/$(PRODUCT_NAME).saver"
 	-killall ScreenSaverEngine 2>/dev/null; true

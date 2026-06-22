@@ -17,6 +17,10 @@
 		9B6F9B6E67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6F9B6D67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift */; };
 		379902B659FA4434815BF2AC /* ScreenSaver.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */; };
 		E20F4AC790D1441481FB41D6 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */; };
+		2E59A838A2A84A4E97D69B51 /* thumbnail.png in Resources */ = {isa = PBXBuildFile; fileRef = 7A6E0F2E7F5D4FCF9F8D8757 /* thumbnail.png */; };
+		EE50E3F266974721A64C0BE9 /* thumbnail@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 1D1C9566D65647EEA8C49752 /* thumbnail@2x.png */; };
+		F3A698E9BA6C4EA394F90AE2 /* thumbnail.tiff in Resources */ = {isa = PBXBuildFile; fileRef = F52BD98DEB374CF8BB57DAF1 /* thumbnail.tiff */; };
+		8F83353591D0448496D1AA33 /* Flapline.icns in Resources */ = {isa = PBXBuildFile; fileRef = D3CD4A88F2884825A3C3A983 /* Flapline.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +36,10 @@
 		F729CEFDADDD4F1894EB15A3 /* ScreenSaver.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenSaver.framework; path = System/Library/Frameworks/ScreenSaver.framework; sourceTree = SDKROOT; };
 		143537C2844D4FCFBBC9CC36 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		E420CAB63F3F433EB3277901 /* Flapline.saver */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Flapline.saver; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A6E0F2E7F5D4FCF9F8D8757 /* thumbnail.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = thumbnail.png; sourceTree = "<group>"; };
+		1D1C9566D65647EEA8C49752 /* thumbnail@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "thumbnail@2x.png"; sourceTree = "<group>"; };
+		F52BD98DEB374CF8BB57DAF1 /* thumbnail.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = thumbnail.tiff; sourceTree = "<group>"; };
+		D3CD4A88F2884825A3C3A983 /* Flapline.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Flapline.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,8 +76,20 @@
 				9B6F9B6B67454D6DA1F7A501 /* SplitFlapConfiguration.swift */,
 				9B6F9B6D67454D6DA1F7A501 /* SplitFlapConfigureSheetController.swift */,
 				6DF5732666934A6D8D48E527 /* Info.plist */,
+				9CB6D3A8FAAE4E25A253ED34 /* Resources */,
 			);
 			path = SplitFlap;
+			sourceTree = "<group>";
+		};
+		9CB6D3A8FAAE4E25A253ED34 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				7A6E0F2E7F5D4FCF9F8D8757 /* thumbnail.png */,
+				1D1C9566D65647EEA8C49752 /* thumbnail@2x.png */,
+				F52BD98DEB374CF8BB57DAF1 /* thumbnail.tiff */,
+				D3CD4A88F2884825A3C3A983 /* Flapline.icns */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		67D1A2262D8749A2B2D7B4F5 /* Frameworks */ = {
@@ -142,6 +162,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2E59A838A2A84A4E97D69B51 /* thumbnail.png in Resources */,
+				EE50E3F266974721A64C0BE9 /* thumbnail@2x.png in Resources */,
+				F3A698E9BA6C4EA394F90AE2 /* thumbnail.tiff in Resources */,
+				8F83353591D0448496D1AA33 /* Flapline.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -283,7 +307,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				COMBINE_HIDPI_IMAGES = YES;
+				COMBINE_HIDPI_IMAGES = NO;
 				INFOPLIST_FILE = SplitFlap/Info.plist;
 				INSTALL_PATH = "$(HOME)/Library/Screen Savers";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -305,7 +329,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				COMBINE_HIDPI_IMAGES = YES;
+				COMBINE_HIDPI_IMAGES = NO;
 				INFOPLIST_FILE = SplitFlap/Info.plist;
 				INSTALL_PATH = "$(HOME)/Library/Screen Savers";
 				LD_RUNPATH_SEARCH_PATHS = (
