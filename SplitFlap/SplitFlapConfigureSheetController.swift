@@ -8,7 +8,11 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
 
     private let modePopup = NSPopUpButton()
+    private let messageSourcePopup = NSPopUpButton()
     private let messageTextView = NSTextView()
+    private let customURLField = NSTextField()
+    private let refreshSlider = NSSlider(value: 15, minValue: 1, maxValue: 1440, target: nil, action: nil)
+    private let refreshValueLabel = NSTextField(labelWithString: "")
     private let orderPopup = NSPopUpButton()
     private let holdSlider = NSSlider(value: 4, minValue: 0, maxValue: 30, target: nil, action: nil)
     private let holdValueLabel = NSTextField(labelWithString: "")
@@ -26,7 +30,7 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
         self.configuration = configuration
         self.onSave = onSave
         self.window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 700),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -53,6 +57,7 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
         contentView.addSubview(stack)
 
         modePopup.addItems(withTitles: SplitFlapDisplayMode.allCases.map(\.title))
+        messageSourcePopup.addItems(withTitles: SplitFlapMessageSource.allCases.map(\.title))
         orderPopup.addItems(withTitles: SplitFlapMessageOrder.allCases.map(\.title))
         randomAlphabetPopup.addItems(withTitles: SplitFlapRandomAlphabet.allCases.map(\.title))
         themePopup.addItems(withTitles: SplitFlapTheme.allCases.map(\.title))
@@ -66,6 +71,9 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
         messageTextView.textContainer?.widthTracksTextView = true
         messageTextView.font = .systemFont(ofSize: 13)
         messageTextView.frame = NSRect(x: 0, y: 0, width: 500, height: 120)
+        customURLField.placeholderString = "https://example.com/flapline.json"
+        customURLField.translatesAutoresizingMaskIntoConstraints = false
+        customURLField.widthAnchor.constraint(equalToConstant: 360).isActive = true
 
         let scrollView = NSScrollView()
         scrollView.borderType = .bezelBorder
@@ -75,7 +83,7 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
         scrollView.heightAnchor.constraint(equalToConstant: 130).isActive = true
         scrollView.widthAnchor.constraint(equalToConstant: 500).isActive = true
 
-        [holdSlider, waveSlider, idleDensitySlider, rowsSlider].forEach {
+        [refreshSlider, holdSlider, waveSlider, idleDensitySlider, rowsSlider].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             $0.target = self
             $0.action = #selector(sliderChanged(_:))
@@ -83,7 +91,10 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
         }
 
         stack.addArrangedSubview(row(label: "Display", control: modePopup))
+        stack.addArrangedSubview(row(label: "Message source", control: messageSourcePopup))
         stack.addArrangedSubview(labeledBlock(label: "Messages", control: scrollView))
+        stack.addArrangedSubview(row(label: "Custom URL", control: customURLField))
+        stack.addArrangedSubview(sliderRow(label: "Refresh", slider: refreshSlider, valueLabel: refreshValueLabel))
         stack.addArrangedSubview(row(label: "Message order", control: orderPopup))
         stack.addArrangedSubview(sliderRow(label: "Message hold", slider: holdSlider, valueLabel: holdValueLabel))
         stack.addArrangedSubview(sliderRow(label: "Idle interval", slider: waveSlider, valueLabel: waveValueLabel))
@@ -120,7 +131,10 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
 
     private func loadConfiguration() {
         modePopup.selectItem(at: SplitFlapDisplayMode.allCases.firstIndex(of: configuration.displayMode) ?? 0)
+        messageSourcePopup.selectItem(at: SplitFlapMessageSource.allCases.firstIndex(of: configuration.messageSource) ?? 0)
         messageTextView.string = configuration.messageText
+        customURLField.stringValue = configuration.customMessageURL
+        refreshSlider.doubleValue = configuration.contentRefreshSeconds / 60
         orderPopup.selectItem(at: SplitFlapMessageOrder.allCases.firstIndex(of: configuration.messageOrder) ?? 0)
         holdSlider.doubleValue = configuration.messageHoldSeconds
         waveSlider.doubleValue = configuration.waveIntervalSeconds
@@ -165,6 +179,7 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
     }
 
     private func updateValueLabels() {
+        refreshValueLabel.stringValue = "\(Int(refreshSlider.doubleValue.rounded())) min"
         holdValueLabel.stringValue = "\(Int(holdSlider.doubleValue.rounded())) sec"
         waveValueLabel.stringValue = "\(Int(waveSlider.doubleValue.rounded())) sec"
         idleDensityValueLabel.stringValue = "\(Int((idleDensitySlider.doubleValue * 100).rounded()))%"
@@ -173,7 +188,10 @@ final class SplitFlapConfigureSheetController: NSObject, NSWindowDelegate {
 
     @objc private func save(_ sender: Any?) {
         configuration.displayMode = SplitFlapDisplayMode.allCases[safe: modePopup.indexOfSelectedItem] ?? .messages
+        configuration.messageSource = SplitFlapMessageSource.allCases[safe: messageSourcePopup.indexOfSelectedItem] ?? .manual
         configuration.messageText = messageTextView.string
+        configuration.customMessageURL = customURLField.stringValue
+        configuration.contentRefreshSeconds = refreshSlider.doubleValue.rounded() * 60
         configuration.messageOrder = SplitFlapMessageOrder.allCases[safe: orderPopup.indexOfSelectedItem] ?? .sequential
         configuration.messageHoldSeconds = holdSlider.doubleValue.rounded()
         configuration.waveIntervalSeconds = waveSlider.doubleValue.rounded()
