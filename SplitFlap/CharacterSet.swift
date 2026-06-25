@@ -72,6 +72,11 @@ struct SplitFlapCharacter: Hashable {
         drumCharacters[Int.random(in: 0..<drumCharacters.count)]
     }
 
+    static func random(in alphabet: SplitFlapRandomAlphabet) -> SplitFlapCharacter {
+        let characters = alphabet.characters
+        return characters[Int.random(in: 0..<characters.count)]
+    }
+
     // Parse one extended grapheme cluster. Known ASCII drum characters normalize
     // to uppercase; all other Unicode clusters are preserved for rendering.
     static func from(_ string: String) -> SplitFlapCharacter {

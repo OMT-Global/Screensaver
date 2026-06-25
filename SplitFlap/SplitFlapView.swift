@@ -18,6 +18,8 @@ final class SplitFlapView: ScreenSaverView {
     private var isPreviewInstance = false
     private var configuration = SplitFlapConfigurationStore.load()
     private var configureSheetController: SplitFlapConfigureSheetController?
+    private let messageFeedLoader = SplitFlapMessageFeedLoader()
+    private var messageFeedRefreshTimer: Timer?
 
     // MARK: - Init
 
@@ -56,13 +58,16 @@ final class SplitFlapView: ScreenSaverView {
 
         clock = DisplayClock(grid: g, configuration: configuration, isPreview: isPreview)
         clock?.showImmediateFrame()
+        refreshMessageFeedIfNeeded()
 
-        // Do NOT use animateOneFrame() timer — all animation is CAAnimation-driven.
+        // Do NOT use animateOneFrame() timer — animation is scheduled by
+        // DisplayClock and played by Core Animation.
         animationTimeInterval = 60.0  // keep ScreenSaverView's empty framework timer cold
     }
 
     deinit {
         removeWindowObservers()
+        stopMessageFeedRefresh()
         clock?.stop()
     }
 
@@ -81,9 +86,8 @@ final class SplitFlapView: ScreenSaverView {
         stopClock()
     }
 
-    // animateOneFrame is called by ScreenSaverView's built-in timer.
-    // All actual animation runs through CABasicAnimation and DisplayClock,
-    // so we have nothing to do here.
+    // animateOneFrame is called by ScreenSaverView's built-in timer. DisplayClock
+    // schedules coarse updates separately, so we have nothing to do here.
     override func animateOneFrame() {}
 
     // MARK: - Layout
@@ -150,6 +154,7 @@ final class SplitFlapView: ScreenSaverView {
         )
         clock?.update(configuration: updated)
         clock?.showImmediateFrame()
+        refreshMessageFeedIfNeeded()
         updateClockForVisibility(restartIfRunning: true)
     }
 
@@ -185,13 +190,9 @@ final class SplitFlapView: ScreenSaverView {
     }
 
     private var shouldRunClock: Bool {
-        guard isAnimating, let window else { return false }
-        if isPreviewInstance {
-            return window.isVisible && !window.isMiniaturized
-        }
+        guard let window else { return false }
         return window.isVisible
             && !window.isMiniaturized
-            && window.occlusionState.contains(.visible)
     }
 
     private func updateClockForVisibility(restartIfRunning: Bool = false) {
@@ -203,6 +204,7 @@ final class SplitFlapView: ScreenSaverView {
         if restartIfRunning || !isClockRunning {
             clock?.start(screen: window?.screen ?? NSScreen.main)
             isClockRunning = true
+            refreshMessageFeedIfNeeded()
         }
     }
 
@@ -210,5 +212,42 @@ final class SplitFlapView: ScreenSaverView {
         guard isClockRunning else { return }
         clock?.stop()
         isClockRunning = false
+    }
+
+    private func refreshMessageFeedIfNeeded() {
+        guard configuration.displayMode == .messages,
+              configuration.messageSource != .manual
+        else {
+            stopMessageFeedRefresh()
+            return
+        }
+
+        messageFeedLoader.load(configuration: configuration) { [weak self] messages in
+            self?.applyFetchedMessages(messages)
+        }
+        scheduleMessageFeedRefresh()
+    }
+
+    private func scheduleMessageFeedRefresh() {
+        messageFeedRefreshTimer?.invalidate()
+        let interval = max(60, configuration.contentRefreshSeconds)
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            self?.refreshMessageFeedIfNeeded()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        messageFeedRefreshTimer = timer
+    }
+
+    private func stopMessageFeedRefresh() {
+        messageFeedRefreshTimer?.invalidate()
+        messageFeedRefreshTimer = nil
+        messageFeedLoader.cancel()
+    }
+
+    private func applyFetchedMessages(_ messages: [String]) {
+        guard !messages.isEmpty else { return }
+        configuration.fetchedMessageText = messages.joined(separator: "\n")
+        clock?.update(configuration: configuration)
+        clock?.showImmediateFrame()
     }
 }

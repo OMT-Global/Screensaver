@@ -1,101 +1,33 @@
 import Foundation
 import QuartzCore
 import AppKit
-import CoreVideo
 
 private protocol DisplayTicker: AnyObject {
     func invalidate()
 }
 
-@available(macOS 14.0, *)
-private final class CADisplayTicker: NSObject, DisplayTicker {
-    private var link: CADisplayLink?
-    private var isInvalidated = false
-    private let onFrame: (CFTimeInterval) -> Void
+private final class TimerTicker: DisplayTicker {
+    private var timer: Timer?
 
-    init?(screen: NSScreen?, onFrame: @escaping (CFTimeInterval) -> Void) {
-        self.onFrame = onFrame
-        super.init()
-
-        guard let link = (screen ?? NSScreen.main)?.displayLink(
-            target: self,
-            selector: #selector(tick(_:))
-        ) else {
-            return nil
+    init(interval: TimeInterval, onFrame: @escaping (CFTimeInterval) -> Void) {
+        let timer = Timer(timeInterval: interval, repeats: true) { _ in
+            onFrame(CACurrentMediaTime())
         }
-        link.preferredFrameRateRange = CAFrameRateRange(
-            minimum: 6,
-            maximum: 15,
-            preferred: 10
-        )
-        link.add(to: .main, forMode: .common)
-        self.link = link
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     func invalidate() {
-        isInvalidated = true
-        link?.invalidate()
-        link = nil
-    }
-
-    @objc private func tick(_ link: CADisplayLink) {
-        guard !isInvalidated else { return }
-        onFrame(link.targetTimestamp > 0 ? link.targetTimestamp : link.timestamp)
-    }
-}
-
-private final class CVDisplayTicker: DisplayTicker {
-    private var link: CVDisplayLink?
-    private var isInvalidated = false
-    private let onFrame: (CFTimeInterval) -> Void
-
-    init?(onFrame: @escaping (CFTimeInterval) -> Void) {
-        self.onFrame = onFrame
-
-        var link: CVDisplayLink?
-        guard CVDisplayLinkCreateWithActiveCGDisplays(&link) == kCVReturnSuccess,
-              let createdLink = link else {
-            return nil
-        }
-
-        self.link = createdLink
-        let context = Unmanaged.passUnretained(self).toOpaque()
-        CVDisplayLinkSetOutputCallback(createdLink, { _, now, _, _, _, context in
-            guard let context else { return kCVReturnSuccess }
-            let ticker = Unmanaged<CVDisplayTicker>.fromOpaque(context).takeUnretainedValue()
-            let scale = now.pointee.videoTimeScale
-            let timestamp: CFTimeInterval
-            if scale > 0 {
-                timestamp = CFTimeInterval(now.pointee.videoTime) / CFTimeInterval(scale)
-            } else {
-                timestamp = CACurrentMediaTime()
-            }
-            DispatchQueue.main.async { [weak ticker] in
-                guard let ticker, !ticker.isInvalidated else { return }
-                ticker.onFrame(timestamp)
-            }
-            return kCVReturnSuccess
-        }, context)
-        CVDisplayLinkStart(createdLink)
-    }
-
-    func invalidate() {
-        isInvalidated = true
-        if let link {
-            CVDisplayLinkStop(link)
-        }
-        link = nil
-    }
-
-    deinit {
-        invalidate()
+        timer?.invalidate()
+        timer = nil
     }
 }
 
 // Controls *when* and *which* panels flip.
-// Two phases alternate automatically:
-//   1. Idle shuffle — panels drift to random characters individually
-//   2. Wave update  — a left-to-right wave sweeps across all panels
+// Three phases cycle automatically:
+//   1. Hold        — completed message remains untouched
+//   2. Idle shuffle — panels drift to random characters individually
+//   3. Wave update  — a left-to-right wave sweeps across all panels
 final class DisplayClock: NSObject {
 
     private weak var grid: CharacterGrid?
@@ -112,6 +44,7 @@ final class DisplayClock: NSObject {
     private var isRunning = false
 
     private enum Phase {
+        case hold       // message remains fully visible
         case idle       // random individual flips
         case wave       // coordinated left-to-right wave
     }
@@ -121,6 +54,7 @@ final class DisplayClock: NSObject {
     private let maxIdleFlipStartsPerTick: Int = 12
     private let maxActiveIdleFlips: Int = 48
     private var runGeneration: Int = 0
+    private let tickerInterval: TimeInterval = 0.1
 
     // MARK: - Init
 
@@ -137,10 +71,15 @@ final class DisplayClock: NSObject {
         contentProvider.update(configuration: configuration)
     }
 
-    func showImmediateFrame() {
+    func showImmediateFrame(advanceMessages: Bool = false) {
         guard let grid else { return }
         applyTargets(
-            contentProvider.immediateTargets(rows: grid.rows, cols: grid.cols, preview: isPreview),
+            contentProvider.immediateTargets(
+                rows: grid.rows,
+                cols: grid.cols,
+                preview: isPreview,
+                advanceMessages: advanceMessages
+            ),
             grid: grid
         )
     }
@@ -151,7 +90,7 @@ final class DisplayClock: NSObject {
         stop()
         runGeneration += 1
         isRunning = true
-        phase = .idle
+        phase = .hold
         phaseTickCount = 0
         lastIdleTickTimestamp = nil
         lastClockTickTimestamp = nil
@@ -161,7 +100,7 @@ final class DisplayClock: NSObject {
             isRunning = false
         }
 
-        showImmediateFrame()
+        showImmediateFrame(advanceMessages: true)
     }
 
     func stop() {
@@ -176,20 +115,14 @@ final class DisplayClock: NSObject {
                 panel.cancelFlip()
             }
         }
-        phase = .idle
+        phase = .hold
         phaseTickCount = 0
     }
 
     // MARK: - Tick
 
     private func makeTicker(screen: NSScreen?) -> DisplayTicker? {
-        if #available(macOS 14.0, *) {
-            return CADisplayTicker(screen: screen) { [weak self] timestamp in
-                self?.displayTick(timestamp: timestamp)
-            }
-        }
-
-        return CVDisplayTicker { [weak self] timestamp in
+        TimerTicker(interval: tickerInterval) { [weak self] timestamp in
             self?.displayTick(timestamp: timestamp)
         }
     }
@@ -223,6 +156,12 @@ final class DisplayClock: NSObject {
         phaseTickCount += 1
 
         switch phase {
+        case .hold:
+            if phaseTickCount >= holdTickDuration {
+                phase = .idle
+                phaseTickCount = 0
+            }
+
         case .idle:
             if configuration.idleShuffleEnabled {
                 idleTick(grid: grid)
@@ -237,7 +176,7 @@ final class DisplayClock: NSObject {
             // Wave animation timing is encoded in each panel's animation beginTime.
             // We just count ticks to know when to return to idle.
             if phaseTickCount >= waveTickDuration {
-                phase = .idle
+                phase = .hold
                 phaseTickCount = 0
             }
         }
@@ -275,7 +214,7 @@ final class DisplayClock: NSObject {
 
             let panel = all[index]
             guard !panel.isFlipping else { continue }
-            let target = SplitFlapCharacter.random()
+            let target = SplitFlapCharacter.random(in: configuration.randomAlphabet)
             guard panel.currentCharacter != target else { continue }
             animator.animateTo(
                 target,
@@ -328,16 +267,16 @@ final class DisplayClock: NSObject {
         startWave(grid: grid)
     }
 
-    private var cycleTickDuration: Int {
-        max(1, Int(configuration.waveIntervalSeconds / idleTickInterval))
+    private var holdTickDuration: Int {
+        max(0, Int(configuration.messageHoldSeconds / idleTickInterval))
     }
 
     private var idleTickDuration: Int {
-        max(1, cycleTickDuration - waveTickDuration)
+        max(1, Int(configuration.waveIntervalSeconds / idleTickInterval))
     }
 
     private var waveTickDuration: Int {
-        max(20, cycleTickDuration / 2)
+        max(20, Int(3 / idleTickInterval))
     }
 
     private func applyTargets(_ targets: [[SplitFlapCharacter]], grid: CharacterGrid) {
